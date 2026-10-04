@@ -41,6 +41,11 @@ export default function EasyreaPage(){
     setSubmitting(true);
     setMessage(`Подготвя ${task}…`); setPollError(""); setJob(null);
     try{
+      if(task === "sync.py"){
+        const health=await fetch("/api/worker/health",{cache:"no-store"});
+        const configuration=await health.json();
+        if(!health.ok || configuration.stock_sync_version !== 2) throw new Error("Python Worker още използва старата синхронизация. Обновете Worker до последната версия, преди да стартирате общата задача.");
+      }
       const r=await fetch("/api/worker/jobs/run",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({task,mode,batch_size:Number(batchSize),batch_number:Number(batchNumber)})});
       const d=await r.json(); if(!r.ok) throw new Error(d.error||d.detail||"Worker error");
       setJob(d.job); setMessage(`Job ${d.job?.id||""} е стартиран в ${mode==="dry"?"TEST / DRY RUN":"REAL RUN"}.`);
@@ -69,4 +74,3 @@ export default function EasyreaPage(){
     <div className="log" ref={logRef} style={{whiteSpace:"pre-wrap",maxHeight:520,overflow:"auto"}}>{logText}</div>
   </>;
 }
-
