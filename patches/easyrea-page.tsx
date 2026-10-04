@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { easyreaTasks } from "@/lib/modules";
 
 type RunMode = "dry" | "real";
-type Job = { id:string; task:string; status:string; created_at?:string; started_at?:string|null; finished_at?:string|null; return_code?:number|null; log?:string };
+type Job = { id:string; task:string; status:string; created_at?:string; started_at?:string|null; finished_at?:string|null; return_code?:number|null; log?:string; reports?:{filename:string;downloadUrl:string}[]; report_error?:string|null };
 const terminal = (s?:string) => s === "success" || s === "failed";
 
 export default function EasyreaPage(){
@@ -71,6 +71,8 @@ export default function EasyreaPage(){
     {message&&<div className="sectionTitle"><div className="notice">{message}</div></div>}
     <div className="sectionTitle"><h2>Job log</h2>{job&&<div className="muted code">{job.id} · {status}</div>}</div>
     {pollError&&<div className="notice">Live log: {pollError}</div>}
+    {job?.reports?.map(r=><div className="sectionTitle" key={r.downloadUrl}><a className="btn primary" href={r.downloadUrl}>Свали {r.filename}</a><a className="btn secondary" href="/reports">Всички отчети</a></div>)}
+    {job?.report_error&&<div className="notice">{job.report_error}</div>}
     <div className="log" ref={logRef} style={{whiteSpace:"pre-wrap",maxHeight:520,overflow:"auto"}}>{logText}</div>
   </>;
 }
