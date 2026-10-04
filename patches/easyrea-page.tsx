@@ -66,7 +66,7 @@ export default function EasyreaPage(){
       <label className="field">Batch number<input value={batchNumber} onChange={e=>setBatchNumber(e.target.value)}/></label>
     </div></div>
     <div className="card"><table className="table"><thead><tr><th>Задача</th><th>График</th><th>Време</th><th>Променя данни</th><th></th></tr></thead><tbody>
-      {easyreaTasks.map(t=><tr key={t.key}><td><strong>{t.name}</strong><div className="muted code">{t.key}</div></td><td>{t.cadence}</td><td>{t.duration}</td><td>{t.writes?"Да":"Не"}</td><td><button className="btn secondary" disabled={submitting || (!!job&&!terminal(job.status))} onClick={()=>run(t.key)}>Пусни</button></td></tr>)}
+      {easyreaTasks.map(t=><tr key={t.key}><td><strong>{t.name}</strong><div className="muted code">{t.key}</div>{t.key==="export_missing_skus.py"&&<div className="muted">EAN на варианти без SKU: atmosphera, Hesperide, Secret De Gourmet, 5five, Neka.</div>}</td><td>{t.cadence}</td><td>{t.duration}</td><td>{t.writes?"Да":"Не"}</td><td><button className="btn secondary" disabled={submitting || (!!job&&!terminal(job.status))} onClick={()=>run(t.key)}>Пусни</button></td></tr>)}
     </tbody></table></div>
     {message&&<div className="sectionTitle"><div className="notice">{message}</div></div>}
     <div className="sectionTitle"><h2>Job log</h2>{job&&<div className="muted code">{job.id} · {status}</div>}</div>
