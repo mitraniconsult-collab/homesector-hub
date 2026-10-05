@@ -45,7 +45,7 @@ export default function EasyreaPage(){
       if(task === "sync.py" || task === "import_products.py"){
         const health=await fetch("/api/worker/health",{cache:"no-store"});
         const configuration=await health.json();
-        if(task==="import_products.py" && (!health.ok || configuration.import_version !== 3)) throw new Error("Worker още използва стария импорт. Изчакайте обновяването.");
+        if(task==="import_products.py" && (!health.ok || configuration.import_version !== 4)) throw new Error("Worker още използва стария импорт. Изчакайте обновяването.");
         if(task==="sync.py" && (!health.ok || configuration.stock_sync_version !== 2)) throw new Error("Python Worker още използва старата синхронизация. Обновете Worker до последната версия, преди да стартирате общата задача.");
       }
       const r=await fetch("/api/worker/jobs/run",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({task,mode,batch_size:Number(batchSize),batch_number:1,ai_provider:aiProvider,ai_preview:mode==="dry"&&aiPreview})});
@@ -68,9 +68,9 @@ export default function EasyreaPage(){
       <label className="field">AI доставчик<select value={aiProvider} onChange={e=>setAiProvider(e.target.value)}><option value="auto">Настройката на Worker</option><option value="claude">Claude</option><option value="openai">OpenAI</option></select></label>
       {mode==="dry"&&<label className="field"><span><input type="checkbox" style={{width:16,height:16}} checked={aiPreview} onChange={e=>setAiPreview(e.target.checked)}/> AI пример за до 5 нови продукта</span></label>}
     </div></div>
-    <div className="notice">Импорт: тестът по подразбиране прави отчет без AI заявки. AI примерът генерира текст и Product category. REAL RUN проверява SKU, EAN и снимките, включва продажба при изчерпване и публикува готовите продукти във всички канали.</div>
+    <div className="notice">Импорт: тестът по подразбиране прави отчет без AI заявки. AI примерът генерира текст и Product category. REAL RUN проверява SKU, EAN и снимките, включва продажба при изчерпване и запазва готовите продукти като Draft за преглед преди активиране.</div>
     <div className="card"><table className="table"><thead><tr><th>Задача</th><th>График</th><th>Време</th><th>Променя данни</th><th></th></tr></thead><tbody>
-      {easyreaTasks.map(t=><tr key={t.key}><td><strong>{t.name}</strong><div className="muted code">{t.key}</div>{t.key==="import_products.py"&&<div className="muted">Проверка по SKU и EAN · всички снимки · Claude / OpenAI · Product category · всички канали</div>}{t.key==="export_missing_skus.py"&&<div className="muted">EAN на варианти без SKU: atmosphera, Hesperide, Secret De Gourmet, 5five, Neka.</div>}</td><td>{t.cadence}</td><td>{t.duration}</td><td>{t.writes?"Да":"Не"}</td><td><button className="btn secondary" disabled={submitting || (!!job&&!terminal(job.status))} onClick={()=>run(t.key)}>Пусни</button></td></tr>)}
+      {easyreaTasks.map(t=><tr key={t.key}><td><strong>{t.name}</strong><div className="muted code">{t.key}</div>{t.key==="import_products.py"&&<div className="muted">Проверка по SKU и EAN · всички снимки · Claude / OpenAI · Product category · Draft</div>}{t.key==="export_missing_skus.py"&&<div className="muted">EAN на варианти без SKU: atmosphera, Hesperide, Secret De Gourmet, 5five, Neka.</div>}</td><td>{t.cadence}</td><td>{t.duration}</td><td>{t.writes?"Да":"Не"}</td><td><button className="btn secondary" disabled={submitting || (!!job&&!terminal(job.status))} onClick={()=>run(t.key)}>Пусни</button></td></tr>)}
     </tbody></table></div>
     {message&&<div className="sectionTitle"><div className="notice">{message}</div></div>}
     <div className="sectionTitle"><h2>Job log</h2>{job&&<div className="muted code">{job.id} · {status}</div>}</div>

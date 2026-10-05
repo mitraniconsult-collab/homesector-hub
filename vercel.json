@@ -1,4 +1,4 @@
 {
-  "installCommand": "cat source-bundle/part-*|base64 -d|tar xz;cp patches/easyrea-page.tsx src/app/easyrea/page.tsx;cp patches/package.json package.json;npm i --no-audit --no-fund",
+  "installCommand": "cat source-bundle/part-*|base64 -d|tar xz;cp patches/easyrea-page.tsx src/app/easyrea/page.tsx;cp patches/package.json package.json;cp -r patches/worker/. worker/;npm i --no-audit --no-fund",
   "buildCommand": "npm run build"
 }
