@@ -63,6 +63,13 @@ class ImportRules(unittest.TestCase):
     def test_all_media_sources_nested_strings_and_dedup(self):
         urls=image_urls({'photoPrincipale':'https://cdn/a.jpg','photoAmbiance':'https://cdn/b.jpg'}, {'listePhotos':[{'urlPhoto':'https://cdn/c.jpg'},'https://cdn/d.jpg'], 'images':{'large':'https://cdn/a.jpg?width=500'},'manuel':'https://cdn/instructions.pdf'})
         self.assertEqual(urls,['https://cdn/a.jpg','https://cdn/b.jpg','https://cdn/c.jpg','https://cdn/d.jpg'])
+    def test_jja_image_in_generic_asset_field(self):
+        urls=image_urls({}, {'assets':[{'url':'https://media.jja-sa.com/224/photo.webp'},
+                                      {'src':'//media.jja-sa.com/224/detail.jpg'},
+                                      {'url':'https://media.jja-sa.com/224/manual.pdf'},
+                                      {'url':'https://other.example/irrelevant.jpg'}]})
+        self.assertEqual(urls,['https://media.jja-sa.com/224/photo.webp',
+                               'https://media.jja-sa.com/224/detail.jpg'])
     def test_ai_english_missing_brand_and_html_are_checked(self):
         good={'title':'Маса atmosphera Bella, Бял','description':'<p>'+'Българско описание за масата. '*8+'</p><script>bad()</script>'}
         title,desc=validate_copy(good,'atmosphera');self.assertNotIn('bad()',desc)

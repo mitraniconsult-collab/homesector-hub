@@ -299,7 +299,11 @@ def main():
                 price=calculate_price(float(cost))
                 row.update(cost_eur=str(cost),sell_price=price)
                 if not cost or not price:row['action']='REVIEW_NO_PRICE';continue
-                if not urls or len(unavailable)==len(urls):row.update(action='REVIEW_NO_IMAGES',note='Липсват достъпни снимки');continue
+                if not urls or len(unavailable)==len(urls):
+                    reason='Easyrea не подава адреси на снимки' if not urls else f'Всички {len(urls)} снимки връщат 404/410'
+                    row.update(action='REVIEW_NO_IMAGES',note=reason)
+                    print(f'[снимки за проверка] {code}: {reason}',flush=True)
+                    continue
                 row['note']='Пропуснати липсващи снимки: '+str(len(unavailable)) if unavailable else ''
                 if dry and not preview:
                     row.update(action='DRY_PLAN',note='Без AI заявки и без Shopify записи');continue
@@ -324,6 +328,8 @@ def main():
                 print(f'[ERROR] {code}: {row["note"]}',flush=True)
             finally:write_report(rows,report)
         print('[резултат] '+str(dict(Counter(r['action'] for r in rows))),flush=True)
+        missing=[r['sku'] for r in rows if r['action']=='REVIEW_NO_IMAGES']
+        if missing:print('[снимки за проверка] SKU: '+', '.join(missing),flush=True)
     finally:
         if rows:write_report(rows,report);print(f'Отчет записан: {report}',flush=True)
     if errors:raise RuntimeError(f'{errors} продукта не са завършени; вижте отчета. Следващото изпълнение проверява същите Draft продукти.')
