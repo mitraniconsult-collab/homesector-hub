@@ -123,6 +123,15 @@ class ImportWrites(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d,patch.dict(os.environ,{'HUB_REPORT_DIR':d,'IMPORT_AI_PREVIEW':'0'}),patch('import_products.runtime.require_env',return_value={'SHOPIFY_STORE':'test'}),patch('import_products.runtime.dry_run',return_value=True),patch('import_products.runtime.batch_size',return_value=5),patch('import_products.easyrea_login',return_value=(None,None)),patch('import_products.fetch_catalog',return_value=(cat,set(),'')),patch('import_products.Shopify',return_value=s),patch('import_products.easyrea_fiche',return_value={'informationsTechniques':{}}),patch('import_products.unavailable_images',return_value=[]),patch('import_products.generate') as ai:
             main();ai.assert_not_called();s.save_draft.assert_not_called()
             with next(Path(d).glob('*.csv')).open(encoding='utf-8-sig') as f:self.assertEqual(next(csv.DictReader(f))['action'],'DRY_PLAN')
+    def test_recent_cache_skips_easyrea_catalog_and_product_card_calls(self):
+        import tempfile,time
+        listing={'gencode':'0012345678905','marque':'ATMOSPHERA','prixAchat':500,'photoPrincipale':'https://media.jja-sa.com/a.jpg'}
+        cached={'version':1,'fetched_at':time.time(),'catalog':{'123':listing},'conflicts':[],
+                'fiches':{'123':{'informationsTechniques':{}}}}
+        s=Mock();s.variants.return_value=[];s.check.return_value=('NEW',None);s.product.return_value=None
+        with tempfile.TemporaryDirectory() as d,patch.dict(os.environ,{'HUB_REPORT_DIR':d,'IMPORT_AI_PREVIEW':'0'}),patch('import_products.runtime.require_env',return_value={'SHOPIFY_STORE':'test'}),patch('import_products.runtime.dry_run',return_value=True),patch('import_products.runtime.batch_size',return_value=5),patch('import_products.catalog_cache.load',return_value=cached),patch('import_products.catalog_cache.save'),patch('import_products.easyrea_login') as login,patch('import_products.fetch_catalog') as catalog,patch('import_products.easyrea_fiche') as fiche,patch('import_products.Shopify',return_value=s),patch('import_products.unavailable_images',return_value=[]):
+            main()
+            login.assert_not_called();catalog.assert_not_called();fiche.assert_not_called()
     def test_openai_schema_and_output_parser(self):
         content={'title':'Маса atmosphera Bella, Бял','description':'<p>'+'Описание на български за продукта. '*8+'</p>'}
         r=Mock();r.json.return_value={'status':'completed','output':[{'type':'message','content':[{'type':'output_text','text':json.dumps(content)}]}]}

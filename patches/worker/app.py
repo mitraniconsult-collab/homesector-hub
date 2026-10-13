@@ -30,6 +30,7 @@ class RunRequest(BaseModel):
     batch_number: int = Field(default=1, ge=1, le=10000)
     ai_provider: str = Field(default="auto", pattern="^(auto|claude|openai)$")
     ai_preview: bool = False
+    refresh_catalog: bool = False
     repair_product_ids: list[str] = Field(default_factory=list,max_length=100)
 
 class LogisticsRequest(BaseModel):
@@ -37,7 +38,7 @@ class LogisticsRequest(BaseModel):
 
 @app.get("/health")
 def health(authorization: str | None = Header(default=None)):
-    auth(authorization); return {"ok":True,"tasks":len(TASKS),"stock_sync_version":2,"reports_version":1,"import_version":4,"order_skus_version":1,"ai_available":{"claude":bool(os.environ.get("ANTHROPIC_API_KEY")),"openai":bool(os.environ.get("OPENAI_API_KEY"))},"time":datetime.now().astimezone().isoformat(timespec="seconds")}
+    auth(authorization); return {"ok":True,"tasks":len(TASKS),"stock_sync_version":2,"reports_version":1,"import_version":5,"order_skus_version":1,"ai_available":{"claude":bool(os.environ.get("ANTHROPIC_API_KEY")),"openai":bool(os.environ.get("OPENAI_API_KEY"))},"time":datetime.now().astimezone().isoformat(timespec="seconds")}
 
 @app.get("/jobs")
 def jobs(authorization: str | None = Header(default=None)):
@@ -72,6 +73,7 @@ def run_job(req:RunRequest, authorization: str | None = Header(default=None)):
         env["IMPORT_REPAIR_IDS"]=__import__("json").dumps(req.repair_product_ids)
         env["IMPORT_AI_PROVIDER"]=req.ai_provider
         env["IMPORT_AI_PREVIEW"]="1" if req.mode=="dry" and req.ai_preview else "0"
+        env["IMPORT_REFRESH_CATALOG"]="1" if req.refresh_catalog else "0"
         report_dir=BASE/"reports"/job.id
         report_dir.mkdir(parents=True,exist_ok=True)
         env["HUB_REPORT_DIR"]=str(report_dir)

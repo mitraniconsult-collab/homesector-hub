@@ -10,6 +10,7 @@ import sys
 import time
 import requests
 import runtime
+import catalog_cache
 from import_rules import Index, VENDORS, PENDING, READY, sku, ean, handle, source_tag, image_urls, media_set_tag, title_handle, finished_tags, IMPORTED
 from import_legacy import easyrea_login, easyrea_fiche, calculate_price, EASYREA_BASE, CODE_MAGASIN, SUFFIXE_MAGASIN
 from product_ai import generate, provider_name, AIConfigurationError, classify
@@ -267,10 +268,18 @@ def main():
     if not dry or preview:provider_name(requested)
     report=Path(os.environ.get('HUB_REPORT_DIR','.'))/f"import_report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
     rows=[];errors=0
-    print(f'=== Импорт v4: {"AI пример (до 5)" if dry and preview else "ПЛАН без AI" if dry else "Импорт като Draft"} | следващи {limit} липсващи ===',flush=True)
+    print(f'=== Импорт v5: {"AI пример (до 5)" if dry and preview else "ПЛАН без AI" if dry else "Импорт като Draft"} | следващи {limit} липсващи ===',flush=True)
     try:
         shop=Shopify(config)
-        session,xsrf=easyrea_login();catalog,conflicts,warning=fetch_catalog(session,xsrf)
+        cached=catalog_cache.load(force=os.environ.get('IMPORT_REFRESH_CATALOG')=='1')
+        session=xsrf=None
+        if cached:
+            catalog=cached['catalog'];conflicts=set(cached.get('conflicts',[]));warning='';fiches=cached['fiches']
+        else:
+            session,xsrf=easyrea_login();catalog,conflicts,warning=fetch_catalog(session,xsrf)
+            cached={'version':1,'fetched_at':time.time(),'catalog':catalog,'conflicts':sorted(conflicts),'fiches':{}}
+            fiches=cached['fiches']
+            catalog_cache.save(cached)
         index=Index(shop.variants())
         rows,candidates=plan(catalog,index,conflicts)
         counts=Counter(r['action'] for r in rows)
@@ -292,7 +301,11 @@ def main():
                 if action not in ('NEW','RESUME'):
                     row.update(action=action,product_id=pid or '');continue
                 row['product_id']=pid or ''
-                fiche=easyrea_fiche(session,xsrf,code)
+                fiche=fiches.get(code)
+                if not fiche:
+                    if session is None:session,xsrf=easyrea_login()
+                    fiche=easyrea_fiche(session,xsrf,code)
+                    if fiche:fiches[code]=fiche
                 if not fiche:row.update(action='REVIEW_NO_PRODUCT_CARD');continue
                 urls=image_urls(listing,fiche);unavailable=unavailable_images(urls);row.update(image_count=len(urls),image_urls=json_urls(urls))
                 cost=Decimal(str(listing.get('prixAchat') or 0))/100
@@ -331,6 +344,8 @@ def main():
         missing=[r['sku'] for r in rows if r['action']=='REVIEW_NO_IMAGES']
         if missing:print('[снимки за проверка] SKU: '+', '.join(missing),flush=True)
     finally:
+        if 'cached' in locals() and cached and 'fiches' in locals() and fiches:
+            catalog_cache.save(cached)
         if rows:write_report(rows,report);print(f'Отчет записан: {report}',flush=True)
     if errors:raise RuntimeError(f'{errors} продукта не са завършени; вижте отчета. Следващото изпълнение проверява същите Draft продукти.')
 
