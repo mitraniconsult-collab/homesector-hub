@@ -9,6 +9,9 @@ from import_rules import validate_copy
 class AIConfigurationError(RuntimeError):
     """Provider credentials, credits or model must be fixed before another item."""
 
+class AITransientError(RuntimeError):
+    """Temporary provider failure; durable workers may retry after backoff."""
+
 SCHEMA={'type':'object','properties':{'title':{'type':'string'},'description':{'type':'string'}},'required':['title','description'],'additionalProperties':False}
 SYSTEM='''Ти си продуктов редактор на Homesector, български магазин за дома, декорацията и градината.
 Създай точен, полезен и естествено звучащ български текст, който помага на клиента да разбере конкретния продукт.
@@ -92,6 +95,12 @@ def request_json(system, prompt, schema, requested='auto', validator=None):
             print(f'[ai:{provider}] опит {attempt+1}: {reason}',flush=True)
             if isinstance(error,requests.HTTPError) and error.response is not None and error.response.status_code in (400,401,402,403,404):
                 raise AIConfigurationError(f'{provider}: {reason}. Задачата е спряна; продуктът не е качен.') from None
+            if isinstance(error, requests.HTTPError) and error.response is not None and error.response.status_code == 429:
+                try: quota = error.response.json().get('error',{}).get('code') == 'insufficient_quota'
+                except (ValueError, AttributeError): quota = False
+                if quota: raise AIConfigurationError('OpenAI API кредитът е изчерпан') from None
+            if attempt==2 and isinstance(error, requests.RequestException):
+                raise AITransientError('Временен проблем при API заявката') from None
             if attempt==2:raise RuntimeError(f'AI не върна валидно българско съдържание; продуктът не е качен. {reason}') from None
             time.sleep(2**attempt)
 
