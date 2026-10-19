@@ -59,6 +59,13 @@ class ImagesTests(unittest.TestCase):
         shop=Mock();shop.product.return_value=self.product();item=self.item();item.pop('attempted');item.pop('urls')
         with patch.object(jobs,'discover',return_value={'url':'source','images':['image']}),patch.object(jobs,'verify') as ai:
             self.assertEqual(jobs.ImageJobs(State()).process(shop,{'mode':'dry'},item,0),'PLANNED');ai.assert_not_called();shop.call.assert_not_called()
+    def test_checkpoint_uses_storage_version_not_http_compression_etag(self):
+        response=Mock();response.status_code=200
+        response.headers={'etag':'W/"http-transformed"','x-hub-state-version':'"storage-version"'}
+        response.json.return_value={'id':'run'}
+        with patch.object(jobs.requests,'get',return_value=response),patch.dict('os.environ',{'HUB_WORKER_TOKEN':'test'}):
+            value,version=jobs.RemoteState().read()
+        self.assertEqual(version,'"storage-version"')
     def test_full_run_recovers_lost_mutation_response_without_duplicate(self):
         item=self.item();item.pop('attempted');item.pop('urls')
         state={'version':1,'id':'run','status':'running','phase':'process','mode':'real','items':[item],'cursor':0,'owner':'','lease_until':0,'ai_calls':0}

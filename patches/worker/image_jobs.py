@@ -35,8 +35,9 @@ class RemoteState:
         r = requests.get(self.url, headers=self.headers(), timeout=30)
         if r.status_code == 404: return None, '*'
         r.raise_for_status()
-        if not r.headers.get('etag'): raise RuntimeError('Хранилището не върна версия на записа')
-        return r.json(), r.headers['etag']
+        version = r.headers.get('x-hub-state-version')
+        if not version: raise RuntimeError('Хранилището не върна версия на записа')
+        return r.json(), version
     def headers(self):
         token = os.environ.get('HUB_WORKER_TOKEN')
         if not token: raise RuntimeError('Липсва HUB_WORKER_TOKEN')
@@ -144,7 +145,8 @@ class ImageJobs:
             try:
                 state = self.claim()
                 if state: self.execute(state)
-            except (Stopped, Conflict): pass
+            except Stopped: pass
+            except Conflict: print('[image-jobs] Конфликт на версията; ще опита отново',flush=True)
             except Exception as exc:
                 # No credential or provider response bodies in the UI.
                 print(f'[image-jobs] {type(exc).__name__}; ще опита отново', flush=True)
