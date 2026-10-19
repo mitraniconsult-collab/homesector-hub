@@ -65,6 +65,7 @@ export default function EasyreaPage(){
       <button className={`btn ${mode==="real"?"danger":"secondary"}`} onClick={()=>setMode("real")}>REAL RUN</button>
     </div></div>
     <div className="notice">Общата синхронизация обновява продажбата при изчерпване и датите, без да променя складовите количества. Непознатите статуси остават за проверка; реалният режим спира при над 25% липсващи или непознати продукти.</div>
+    <p><a className="btn secondary" href="/shopify">Допълни липсващи снимки · OpenAI</a></p>
     <div className="sectionTitle"><h2>Задачи</h2><div className="actions">
       <label className="field">Максимум нови продукти<input value={batchSize} onChange={e=>setBatchSize(e.target.value)}/></label>
       <label className="field">AI доставчик<select value={aiProvider} onChange={e=>setAiProvider(e.target.value)}><option value="auto">Настройката на Worker</option><option value="claude">Claude</option><option value="openai">OpenAI</option></select></label>

@@ -38,7 +38,7 @@ class LogisticsRequest(BaseModel):
 
 @app.get("/health")
 def health(authorization: str | None = Header(default=None)):
-    auth(authorization); return {"ok":True,"tasks":len(TASKS),"stock_sync_version":2,"reports_version":1,"import_version":5,"order_skus_version":1,"ai_available":{"claude":bool(os.environ.get("ANTHROPIC_API_KEY")),"openai":bool(os.environ.get("OPENAI_API_KEY"))},"time":datetime.now().astimezone().isoformat(timespec="seconds")}
+    auth(authorization); return {"ok":True,"tasks":len(TASKS),"stock_sync_version":2,"reports_version":1,"import_version":5,"order_skus_version":1,"image_jobs_version":1,"ai_available":{"claude":bool(os.environ.get("ANTHROPIC_API_KEY")),"openai":bool(os.environ.get("OPENAI_API_KEY"))},"time":datetime.now().astimezone().isoformat(timespec="seconds")}
 
 @app.get("/jobs")
 def jobs(authorization: str | None = Header(default=None)):
@@ -100,3 +100,48 @@ def run_job(req:RunRequest, authorization: str | None = Header(default=None)):
 @app.post("/logistics/report")
 def logistics(req:LogisticsRequest, authorization: str | None = Header(default=None)):
     auth(authorization); return build_logistics_report(config_from_env(),days=req.days)
+
+
+# Durable image jobs are separate from the legacy in-memory subprocess jobs.
+from image_jobs import IMAGE_JOBS, Conflict
+from fastapi.responses import Response
+
+class ImageRunRequest(BaseModel):
+    mode: str = Field(default="dry", pattern="^(dry|real)$")
+    limit: int = Field(default=100, ge=1, le=5000)
+    collection_id: str = Field(default="", pattern="^([0-9]+)?$")
+
+@app.on_event("startup")
+def recover_image_jobs():
+    IMAGE_JOBS.wake()
+
+@app.on_event("shutdown")
+def stop_image_jobs():
+    IMAGE_JOBS.shutdown.set()
+
+@app.get("/image-jobs")
+def image_job_status(authorization: str | None = Header(default=None)):
+    auth(authorization)
+    try: return {"job": IMAGE_JOBS.status()}
+    except Exception: raise HTTPException(503,"Постоянното хранилище за задачата е недостъпно")
+
+@app.post("/image-jobs")
+def image_job_start(req: ImageRunRequest, authorization: str | None = Header(default=None)):
+    auth(authorization)
+    try: return {"job": IMAGE_JOBS.start(req.mode, req.limit, req.collection_id)}
+    except Conflict as exc: raise HTTPException(409,str(exc))
+    except ValueError as exc: raise HTTPException(400,str(exc))
+    except Exception: raise HTTPException(503,"Не може да се запише задачата. Проверете хранилището.")
+
+@app.post("/image-jobs/{action}")
+def image_job_control(action: str, authorization: str | None = Header(default=None)):
+    auth(authorization)
+    try: return {"job": IMAGE_JOBS.control(action)}
+    except Conflict as exc: raise HTTPException(409,str(exc))
+    except ValueError as exc: raise HTTPException(400,str(exc))
+    except Exception: raise HTTPException(503,"Не може да се запази състоянието")
+
+@app.get("/image-jobs/report")
+def image_job_report(authorization: str | None = Header(default=None)):
+    auth(authorization)
+    return Response(IMAGE_JOBS.report(),media_type="text/csv",headers={"Content-Disposition":"attachment; filename=product-images.csv"})
