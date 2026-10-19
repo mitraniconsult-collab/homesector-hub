@@ -12,9 +12,9 @@ function authorized(req: Request) {
 export async function GET(req: Request) {
   if (!authorized(req)) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    const data = await get(path, { access: "private", useCache: false });
+    const data = await get(path, { access: "private", useCache: false, headers: { "Accept-Encoding": "identity" } });
     if (!data || data.statusCode !== 200) return Response.json({ error: "Missing" }, { status: 404 });
-    return new Response(data.stream, { headers: { "content-type": "application/json", "cache-control": "private, no-store", etag: data.blob.etag, "x-hub-state-version": data.blob.etag } });
+    return new Response(data.stream, { headers: { "content-type": "application/json", "cache-control": "private, no-store, no-transform", etag: data.blob.etag, "x-hub-state-version": data.blob.etag } });
   } catch { return Response.json({ error: "State unavailable" }, { status: 503 }); }
 }
 export async function PUT(req: Request) {
@@ -27,7 +27,7 @@ export async function PUT(req: Request) {
     const state = JSON.parse(text);
     if (state.version !== 1 || typeof state.id !== "string" || !Array.isArray(state.items)) return Response.json({ error: "Invalid state" }, { status: 400 });
     // '*' means create-only; existing state is replaced only with its exact ETag.
-    if (match === "*" && await get(path, { access: "private", useCache: false })) return Response.json({ error: "Conflict" }, { status: 409 });
+    if (match === "*" && await get(path, { access: "private", useCache: false, headers: { "Accept-Encoding": "identity" } })) return Response.json({ error: "Conflict" }, { status: 409 });
     const blob = await put(path, text, { access: "private", addRandomSuffix: false, allowOverwrite: match !== "*", ...(match !== "*" ? { ifMatch: match } : {}), contentType: "application/json" });
     return Response.json({ ok: true }, { headers: { etag: blob.etag, "cache-control": "no-store" } });
   } catch (error) {
