@@ -14,7 +14,7 @@ export async function GET(req: Request) {
   try {
     const data = await get(path, { access: "private", useCache: false });
     if (!data || data.statusCode !== 200) return Response.json({ error: "Missing" }, { status: 404 });
-    return new Response(data.stream, { headers: { "content-type": "application/json", "cache-control": "private, no-store", etag: data.blob.etag } });
+    return new Response(data.stream, { headers: { "content-type": "application/json", "cache-control": "private, no-store", etag: data.blob.etag, "x-hub-state-version": data.blob.etag } });
   } catch { return Response.json({ error: "State unavailable" }, { status: 503 }); }
 }
 export async function PUT(req: Request) {
