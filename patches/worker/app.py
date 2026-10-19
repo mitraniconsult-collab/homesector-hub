@@ -145,3 +145,6 @@ def image_job_control(action: str, authorization: str | None = Header(default=No
 def image_job_report(authorization: str | None = Header(default=None)):
     auth(authorization)
     return Response(IMAGE_JOBS.report(),media_type="text/csv",headers={"Content-Disposition":"attachment; filename=product-images.csv"})
+
+from feeds.api import router as feeds_router
+app.include_router(feeds_router)
