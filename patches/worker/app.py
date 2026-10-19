@@ -38,7 +38,7 @@ class LogisticsRequest(BaseModel):
 
 @app.get("/health")
 def health(authorization: str | None = Header(default=None)):
-    auth(authorization); return {"ok":True,"tasks":len(TASKS),"stock_sync_version":2,"reports_version":1,"import_version":5,"order_skus_version":1,"image_jobs_version":1,"ai_available":{"claude":bool(os.environ.get("ANTHROPIC_API_KEY")),"openai":bool(os.environ.get("OPENAI_API_KEY"))},"time":datetime.now().astimezone().isoformat(timespec="seconds")}
+    auth(authorization); return {"ok":True,"tasks":len(TASKS),"stock_sync_version":2,"reports_version":1,"import_version":5,"order_skus_version":1,"image_jobs_version":2,"ai_available":{"claude":bool(os.environ.get("ANTHROPIC_API_KEY")),"openai":bool(os.environ.get("OPENAI_API_KEY"))},"time":datetime.now().astimezone().isoformat(timespec="seconds")}
 
 @app.get("/jobs")
 def jobs(authorization: str | None = Header(default=None)):

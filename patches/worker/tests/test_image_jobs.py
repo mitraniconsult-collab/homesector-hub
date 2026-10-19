@@ -50,11 +50,10 @@ class ImagesTests(unittest.TestCase):
         store=State({'a':1});_,version=store.read();store.write({'a':2},version)
         with self.assertRaises(jobs.Conflict):store.write({'a':3},version)
         self.assertEqual(store.state,{'a':2})
-    def test_existing_image_skips_ai_and_write(self):
-        shop=Mock();shop.product.return_value=self.product();shop.product.return_value['media']['nodes']=[{'id':'image'}]
-        item=self.item();item.pop('attempted')
-        with patch.object(jobs,'verify') as ai:
-            self.assertEqual(jobs.ImageJobs(State()).process(shop,{'mode':'real'},item,0),'SKIPPED');ai.assert_not_called();shop.call.assert_not_called()
+    def test_one_or_two_existing_images_are_candidates(self):
+        for count in (0,1,2):
+            product=self.product();product['media']['nodes']=[{'id':str(i),'image':{'url':'image'}}for i in range(count)]
+            self.assertTrue(jobs.candidate(product))
     def test_dry_mode_never_calls_ai_or_shopify_mutation(self):
         shop=Mock();shop.product.return_value=self.product();item=self.item();item.pop('attempted');item.pop('urls')
         with patch.object(jobs,'discover',return_value={'url':'source','images':['image']}),patch.object(jobs,'verify') as ai:
