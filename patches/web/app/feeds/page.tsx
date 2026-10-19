@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const markets = ["BG", "RO", "GR", "HU"] as const;
 const channels = ["google", "meta", "favi", "biano"] as const;
@@ -10,6 +10,15 @@ const feeds = channels.flatMap(channel => markets
 
 export default function FeedsPage() {
   const [filter, setFilter] = useState("all");
+  const [statuses, setStatuses] = useState<Record<string, { status: string; product_count: number | null; xml_url: string | null }>>({});
+  const [error, setError] = useState("");
+  useEffect(() => {
+    fetch("/api/feeds", { cache: "no-store" }).then(async response => {
+      if (!response.ok) throw new Error("Feed API unavailable");
+      const data = await response.json();
+      setStatuses(Object.fromEntries((data.feeds || []).map((feed: {channel: string; market: string; status: string; product_count: number | null; xml_url: string | null}) => [feed.channel + feed.market, feed])));
+    }).catch(() => setError("Could not load live feed statuses"));
+  }, []);
   const visible = feeds.filter(feed => filter === "all" || feed.market === filter);
   return (
     <main className="mx-auto max-w-6xl p-6 space-y-6">
@@ -29,6 +38,7 @@ export default function FeedsPage() {
           </button>
         ))}
       </div>
+      {error && <p role="alert" className="text-red-700">{error}</p>}
       <div className="overflow-x-auto rounded border">
         <table className="w-full text-left text-sm">
           <thead className="bg-gray-50"><tr>
@@ -40,8 +50,8 @@ export default function FeedsPage() {
               <tr className="border-t" key={feed.channel + feed.market}>
                 <td className="p-3 uppercase">{feed.channel}</td>
                 <td className="p-3">{feed.market}</td>
-                <td className="p-3">Not published</td>
-                <td className="p-3 text-gray-500">Pending validation</td>
+                <td className="p-3">{statuses[feed.channel + feed.market]?.status || "Not verified"}</td>
+                <td className="p-3 text-gray-500">{statuses[feed.channel + feed.market]?.xml_url ? <a href={statuses[feed.channel + feed.market].xml_url!} rel="noopener noreferrer" target="_blank">Open XML</a> : "Pending validation"}</td>
               </tr>
             ))}
           </tbody>
