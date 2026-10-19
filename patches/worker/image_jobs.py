@@ -248,8 +248,7 @@ class ImageJobs:
             source = discover(item['sku'],item['barcode'])
             item['source_url']=source['url']
             if images(product):
-                plan=gallery_plan(product,source,real=state['mode']=='real')
-                if plan.get('ai_used'):self.update(lambda s:s.update(ai_calls=s['ai_calls']+1))
+                plan=gallery_plan(product,source,real=state['mode']=='real',on_ai=lambda:self.update(lambda s:s.update(ai_calls=s['ai_calls']+1)))
                 item.update(plan)
             else:
                 item.update(urls=source['images'],remove_ids=[],replacements=[],before_media=fingerprint(product))
