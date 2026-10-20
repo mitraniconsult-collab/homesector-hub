@@ -162,3 +162,13 @@ Updated: 2026-10-20. This file tracks *verified facts* versus untested implement
 - Corrected full Google BG private XML and FAVI preview are generated from refreshed rows; quantity zero alone never excludes a CONTINUE row. Missing descriptions/categories/legacy IDs remain independent diagnostics, not a warehouse-stock exclusion policy.
 - Live Shopify canary verified two zero-quantity CONTINUE variants without arrival dates, plus a zero-quantity DENY variant; node batch query executed successfully. 62 offline regression tests PASSED before deployment.
 - Official docs checked: Google availability https://support.google.com/merchants/answer/6324448 ; FAVI BG requirements https://help.favionline.com/bg/значения-и-изисквания-към-отделните-елементи . Destination availability/dispatch promises still need to match the storefront and shipping configuration before release, especially FAVI's stock badge.
+
+
+## Verified 2026-10-20 22:05 Europe/Sofia — warehouse-zero exclusion corrected
+- Real Shopify refresh completed for all **11,461** original Google BG variant rows. Corrected full private XML retains all **11,461** rows, including **7,915** currently at non-positive warehouse quantity with CONTINUE enabled.
+- Resolved availability: **10,549** sellable/local-or-supplier-stock entries; **912** genuine expected-arrival/backorder entries carrying their actual Shopify expected_arrival date. No missing availability-date errors remain. Warehouse quantities and stable IDs were not modified.
+- Corrected full private XML SHA256 4d012b89813ce2465f2ee1a0f16e0cf86b6c2de0e2841578cfcc0e04de02a966. Retained independently from original journal/full XML.
+- **11,417** entries now pass local common XML preflight. Remaining **44** missing descriptions are a separate content issue; they remain in the full source XML. Validated subset SHA256 8457f9d8f29d69aa6058397dba98ea9ab354e0e87139e33b839409b6e9885cc3. The old 3,548 subset is superseded and must not be offered as the intended catalog.
+- FAVI private new-ID candidate rose from **85 to 220** entries; no serializer availability rejections remain. FAVI is still held on independent category coverage and historical-ID verification gates; no live subscription was changed.
+- Added bounded HTTP-200 GraphQL throttle recovery; **63 offline regression tests pass**, plus an integration check proving that zero/negative-quantity CONTINUE records and real arrival dates survive full snapshot regeneration while original archives stay byte-identical.
+- All new outputs remain unpublished. Stable public XML delivery, ongoing regeneration, storefront/shipping consistency and destination acceptance remain outstanding.
