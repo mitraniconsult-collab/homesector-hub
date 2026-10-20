@@ -12,7 +12,7 @@ def category_candidate(product, market):
     current = str(product.get("productType") or "").strip()
     if current:
         return {"candidate": current, "source": "shopify_product_type",
-                "taxonomy_id": taxonomy.get("id"), "verified_for_market": market == "BG"}
+                "taxonomy_id": taxonomy.get("id"), "verified_for_market": False}
     if full:
         return {"candidate": full, "source": "shopify_standard_taxonomy",
                 "taxonomy_id": taxonomy.get("id"), "verified_for_market": False}
