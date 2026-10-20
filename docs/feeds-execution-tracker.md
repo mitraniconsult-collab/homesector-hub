@@ -58,3 +58,9 @@ Updated: 2026-10-20. This file tracks *verified facts* versus untested implement
 - Test files added for taxonomy candidate and validation. Tests not yet executed or deployed.
 - Hourly completion/failure watch ACTIVE; Homesector Growth Audit is PAUSED with owner consent. No destination is connected or published.
 - Next: inspect current staging logs for COMPLETED/FAILED, validate full XML, design persistent generation storage before first release.
+
+## Update — 2026-10-20, latest execution check
+- Render staging live at 95e7dfb. Latest progress 9,900 products / 8,611 candidate positions at 10:46:13 UTC; the Render worker logged "Shutting down" at 10:48:45 UTC. No confirmed audit COMPLETED/FAILED. Do not claim feed is complete or trigger another deploy without evaluating persistence.
+- International feeds branch has new `feeds/shopify_translations.py`: read-only batched source of official Shopify title/body_html translations for RO/GR/HU, rejecting incomplete results. New offline unit tests included. Integration into the catalog/market links and deployment are still TODO; scripts untested on Render.
+- Separate `category_mapping.py` and quality gate exist; verify platform taxonomy before release.
+- No live feed switched or submitted. Feedhub remains unchanged.
