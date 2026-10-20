@@ -59,6 +59,7 @@ def run():
                                  if k not in ("top_shopify_product_types",
                                               "candidate_mapping_samples")}
                 print("[favi-category] " + json.dumps(public_report, sort_keys=True), flush=True)
+                print("[favi-category] top_types=" + json.dumps(report["top_shopify_product_types"][:20], ensure_ascii=False), flush=True)
                 print("[favi-category] report saved to durable disk; nothing published", flush=True)
             except Exception as exc:
                 print(f"[favi-category] FAILED type={type(exc).__name__} cause={str(exc)[:180]}", flush=True)
