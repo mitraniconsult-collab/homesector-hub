@@ -24,3 +24,20 @@ def check():
     return {"ok": True, "module": "feed-manager", "configured_feeds": len(targets()),
             "api_auth_configured": bool(os.environ.get("HUB_WORKER_TOKEN")),
             "feeds_published": False}
+
+@router.get("/catalog-config")
+def catalog_config(authorization: str | None = Header(default=None)):
+    """Read-only credential readiness, never return actual secrets."""
+    token = os.environ.get("HUB_WORKER_TOKEN")
+    if not token:
+        raise HTTPException(503, "Worker authentication not configured")
+    if authorization != "Bearer " + token:
+        raise HTTPException(401, "Unauthorized")
+    store = os.environ.get("SHOPIFY_STORE", "").strip()
+    return {
+        "shopify_store_configured": store.endswith(".myshopify.com"),
+        "shopify_admin_token_configured": bool(os.environ.get("SHOPIFY_ADMIN_ACCESS_TOKEN")),
+        "catalog_ready": store.endswith(".myshopify.com")
+                         and bool(os.environ.get("SHOPIFY_ADMIN_ACCESS_TOKEN")),
+        "read_only": True,
+    }
