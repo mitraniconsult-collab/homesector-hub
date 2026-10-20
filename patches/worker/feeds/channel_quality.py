@@ -39,8 +39,8 @@ def check_product(row, market, channel):
                 problems.append("invalid_" + field)
     if channel == "favi" and not row.get("product_type"):
         problems.append("missing_favi_category")
-    if channel == "favi" and market != "BG" and not row.get("category_verified_for_market"):
-        problems.append("unverified_favi_category_translation")
+    if channel == "favi" and not row.get("category_verified_for_market"):
+        problems.append("unverified_favi_category")
     # The current catalog query uses the base product language. For non-BG
     # publishing require positive evidence of localized copy/URL.
     if market != "BG":
