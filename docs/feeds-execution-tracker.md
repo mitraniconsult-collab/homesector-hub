@@ -143,3 +143,12 @@ Updated: 2026-10-20. This file tracks *verified facts* versus untested implement
 - Actual durable Google BG snapshot preflight: **11,461 items; 7,913 missing/invalid backorder availability dates; 44 missing descriptions; 11,461 unique IDs**. Issue counts can overlap. SHA256 remains 32eb87131674f405bb85f82bcc42d6f823c019f493e590526f870160ac1dc935; original source unchanged.
 - FAVI BG private snapshot has 85 items and passes common RSS checks, but FAVI category approval, historical ID review and external acceptance remain outstanding.
 - Added a separate Google BG validated-preview XML builder: excludes failing entries with explicit reason counts, retains original IDs, validates the resulting XML again, and keeps original full export unchanged. This is a private candidate only, never an automatic replacement of a registered feed.
+
+
+## Verified 2026-10-20 21:54 Europe/Sofia — valid private Google BG subset generated
+- Commit eff5ed04b33a450bd955f369f21dd20881e811c6 is LIVE on both staging services: worker dep-dbbrh6tg1s2s73c2iso0; API dep-dbbrh6lg1s2s73a2q630.
+- Actual mounted-disk generation completed: **3,548 Google BG entries pass local XML preflight**, **7,913 entries excluded**. The 44 missing descriptions overlap the excluded backorders; do not subtract twice.
+- Private candidate: /var/data/feeds/google-bg/google-bg-validated-preview.xml; SHA256 2dcdf00b36776a2d3e15ef3df16e07a3b730669dc5ba7cd6c9045e54bbdd3355. Original full Google export and IDs remain unchanged. This is NOT merchant acceptance, public hosting, or an active feed.
+- FAVI private preview still has 85 entries; 3,731 candidate entries remain held for legacy-ID review, 7,510 have no proposed category mapping, 135 new-ID candidates fail availability-date checks.
+- 54 offline regression tests PASSED. New API /feeds/check returned HTTP 200 with API auth configured and legacy startup audit disabled; unauthenticated /feeds/status returned HTTP 401 as expected. Mounted worker report remains unavailable on the separate free API service, reported honestly.
+- Remaining for first working Google BG feed: shared durable XML delivery with a stable HTTPS URL; scheduled fresh generation and last-good retention; destination trial/acceptance. Remaining FAVI inputs: actual active XML URL from FAVI panel, ID continuity, localized category completion/approval. Feedhub unchanged.
