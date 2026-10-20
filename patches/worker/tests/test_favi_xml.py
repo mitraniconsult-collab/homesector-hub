@@ -23,14 +23,14 @@ def test_favi_rejects_missing_market_category():
     row = {**BASE, "category_verified_for_market": False}
     assert "unverified_favi_category" in validate(row, "BG")
 
-def test_favi_allows_backorder_without_date():
+def test_favi_requires_date_for_backorder():
     row = {**BASE, "available": False, "continue_selling": True}
-    assert validate(row, "BG") == []
+    assert "invalid_backorder_availability_date" in validate(row, "BG")
     row["availability_date"] = "2026-11-25T13:00:00+02:00"
-    assert validate(row, "BG") == []
+    assert "invalid_backorder_availability_date" not in validate(row, "BG")
 
 def test_favi_rejects_special_characters_in_ids():
-    row = {**BASE, "id": "shopify.v17"}
+    row = {**BASE, "id": "shopify-v17"}
     assert "invalid_favi_alphanumeric_id" in validate(row, "BG")
 
 def test_favi_duplicate_url_prevents_catalog_merge():
