@@ -18,8 +18,6 @@ def test_commit_and_resume_truncates_uncommitted_tail(tmp_path, monkeypatch):
     # Test temporary pytest directory as simulated mounted disk path. Constructor
     # refusal is separately tested; don't weaken the runtime guard.
     monkeypatch.setenv("FEED_DURABLE_STORAGE_CONFIRMED", "yes")
-    monkeypatch.setattr("feeds.durable_journal.Path.resolve",
-                        lambda self: self)
     # Use non-/tmp symbolic location to test journal algorithm.
     j = DurableJournal.__new__(DurableJournal)
     j.root = tmp_path
