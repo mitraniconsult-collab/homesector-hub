@@ -171,7 +171,24 @@ def probe_feed_shopify_staging():
                     (os.environ.get("SHOPIFY_CLIENT_ID") and os.environ.get("SHOPIFY_CLIENT_SECRET"))):
                 print("[feeds] Shopify diagnostic: ACCESS_CREDENTIALS_MISSING", flush=True)
                 return
-            get_admin_token(store)
+            access_token = get_admin_token(store)
+            # Test product reads and country-specific fields separately without logging sensitive values.
+            import requests as _requests
+            endpoint = f"https://{store}/admin/api/2026-07/graphql.json"
+            checks = (
+                ("PRODUCTS", "{ products(first: 1) { nodes { id title } } }"),
+                ("MARKET_PUBLICATION", "{ products(first: 1) { nodes { id publishedInContext(context: {country: BG}) } } }"),
+                ("MARKET_PRICING", "{ products(first: 1) { nodes { variants(first: 1) { nodes { contextualPricing(context: {country: BG}) { price { amount currencyCode } } } } } } }"),
+                ("INVENTORY", "{ products(first: 1) { nodes { variants(first: 1) { nodes { inventoryQuantity } } } } }"),
+            )
+            for label, query in checks:
+                check_response = _requests.post(
+                    endpoint, headers={"X-Shopify-Access-Token": access_token},
+                    json={"query": query}, timeout=20)
+                check_response.raise_for_status()
+                data = check_response.json()
+                denied = bool(data.get("errors")) or not data.get("data", {}).get("products")
+                print(f"[feeds] Shopify scope probe {label}: {'DENIED' if denied else 'OK'}", flush=True)
             stage = "catalog_query"
             iterator = read_markets_catalog(store=store, max_pages=1)
             first = next(iterator, None)
