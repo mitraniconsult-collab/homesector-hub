@@ -49,3 +49,12 @@ Updated: 2026-10-20. This file tracks *verified facts* versus untested implement
 - Channel quality gate and tests committed but **not deployed**; Meta XML draft and tests committed; still needs test execution and Commerce Manager sample validation.
 - Verified Shopify Product.translations(locale:ro/el/hu) return localized title and body_html for one live Quttin product. localization.py applies verified supplied translations; full catalog fetching and verified international URL resolution remain pending.
 - No new feeds published, Feedhub unchanged.
+
+## Update 2026-10-20 — subsequent checkpoint
+
+- Render staging at commit 95e7dfb is LIVE. Partial logs show **at least 5,400 scanned products**, no confirmed COMPLETE. Multiple previous deployment logs overlap; don't combine their counts. Worker now has local page-level cursor checkpoints but ephemeral disks are **not** durable across Render deployment.
+- GitHub feature branch has candidate category mapping `category_mapping.py` using Shopify Product.category fullName / taxonomy ID; verified actual Shopify example with empty productType and category "Frying Pans". Translation is NOT inferred from English category.
+- Quality gate now rejects wrong-country product domains and unverified non-BG FAVI category translations.
+- Test files added for taxonomy candidate and validation. Tests not yet executed or deployed.
+- Hourly completion/failure watch ACTIVE; Homesector Growth Audit is PAUSED with owner consent. No destination is connected or published.
+- Next: inspect current staging logs for COMPLETED/FAILED, validate full XML, design persistent generation storage before first release.
