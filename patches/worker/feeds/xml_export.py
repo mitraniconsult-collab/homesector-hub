@@ -27,5 +27,7 @@ def generate(products, market, channel):
             add(item, "{" + GOOGLE_NS + "}" + field, p.get(field))
         add(item, "{" + GOOGLE_NS + "}price", str(p["price"]) + " " + p["currency"])
         add(item, "{" + GOOGLE_NS + "}availability", "in_stock" if p.get("available") else "backorder")
+        if not p.get("available"):
+            add(item, "{" + GOOGLE_NS + "}availability_date", p.get("availability_date"))
         add(item, "{" + GOOGLE_NS + "}condition", "new")
     return ET.tostring(root, encoding="utf-8", xml_declaration=True)

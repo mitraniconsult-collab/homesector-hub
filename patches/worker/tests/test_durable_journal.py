@@ -7,7 +7,8 @@ from feeds.durable_journal import DurableJournal
 def test_requires_durable_storage_confirmation(tmp_path, monkeypatch):
     monkeypatch.delenv("FEED_DURABLE_STORAGE_CONFIRMED", raising=False)
     with pytest.raises(RuntimeError):
-        DurableJournal(tmp_path)
+        # Keep this test independent of pytest's /tmp location guard.
+        DurableJournal("/unconfirmed-feed-volume")
 
 def test_refuses_tmp_even_when_confirmed(monkeypatch):
     monkeypatch.setenv("FEED_DURABLE_STORAGE_CONFIRMED", "yes")

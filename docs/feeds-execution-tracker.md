@@ -8,12 +8,12 @@ Updated: 2026-10-20. This file tracks *verified facts* versus untested implement
 | --- | --- | --- | --- |
 | BG-01 | Shopify OAuth access and Markets permissions | VERIFIED | Render startup reported PRODUCTS, MARKET_PUBLICATION, MARKET_PRICING, INVENTORY = OK |
 | BG-02 | Google BG five-product sample | VERIFIED | Render log: XML VALID, 3 items / 5 products |
-| BG-03 | Full Google BG catalog audit | RUNNING / NOT VERIFIED COMPLETE | Staging deployed commit bed66f4. Last read: 3,900 products scanned; 3,734 candidate variants. Check for explicit COMPLETED or FAILED |
+| BG-03 | Full Google BG catalog audit | COMPLETE ON DURABLE WORKER | 19,305 products / 11,461 rows. XML content preflight is separate from export completion |
 | BG-04 | Full feed compliance, sample merchant acceptance | BLOCKED BY BG-03 | Review exclusions, Google schema, variant and stock semantics; compare Feedhub before switching |
 | CORE-01 | Handle >25 variants via Shopify GraphQL pagination | CODE DEPLOYED | Commit e419d8e; end-to-end large-variant fixture remains required |
 | CORE-02 | Read translated titles/descriptions and market-correct handles | PARTIAL / UNTESTED | Shopify verified RO/EL/HU translations for a Quttin product; localization.py applies verified copy, but fetching at scale and URL checks are pending |
 | CORE-03 | Validate market publication/pricing/inventory | VERIFIED ON SAMPLE | Shopify live query and Render startup checks OK |
-| CORE-04 | Persistent storage, atomic publish, last known good | TODO | Current Render /tmp is ephemeral |
+| CORE-04 | Persistent storage, atomic publish, last known good | PARTIAL | Dedicated worker has mounted 1 GB disk; private snapshots persist. Shared API delivery and production last-good release remain TODO |
 | CORE-05 | Retry/rate limit for full catalog | CODE DEPLOYED | bed66f4; audit progressed past earlier 2,600-product failure |
 | QA-01 | Preflight gate per market and destination | IMPLEMENTED / UNTESTED | channel_quality.py, tests/test_feed_quality.py; feature branch only |
 | FAVI-01 | Category mapping for FAVI | BLOCKED | Shopify productType is empty for real sample products; use Product category/collection taxonomy instead |
@@ -128,3 +128,13 @@ Updated: 2026-10-20. This file tracks *verified facts* versus untested implement
 - Hard migration guard now blocks an existing source product from silently receiving a new ID if the provided old Feedhub ID is disallowed. This XML was supplied as Google Feedhub, **not confirmed as active FAVI registered feed**, so platform's actual ID policy/history must be reviewed manually.
 - Latest deployed private FAVI BG preview Render dep-dbbob3vavr4c73898hhg, SHA256 2f48328c5ade255a742930a7bb9656f5a29a24db768dcf59855a5abab72c1739: 85 valid rows, 135 candidate rows excluded missing backorder date, 3,731 rows held for existing-ID review, 7,510 rows without category mapping, 220 potential new-only ID rows examined. No external publishing.
 - **Priority blockers**: (1) confirm current feed URL in FAVI panel and policy about existing punctuated legacy ID; (2) obtain trustworthy variant-specific availability dates from Shopify or exclude backorders; (3) expand precise localized category mapping and obtain FAVI approval; (4) current background worker is diagnostic only, no public XML URL. Never replace Feedhub until accepted and approved.
+
+
+## 2026-10-20 — API branch reconciliation and snapshot quality audit
+- Verified Render workspace previously confirmed by owner: tea-dardg6ojo6nc73fhnel0. API service follows feature/feed-manager-audit; durable worker follows feature/feeds-other-channels. API was live at 95e7dfb, worker at fb90074.
+- Merged API checkpoint changes into the multichannel branch, retaining bounded retry handling and both durable/background and legacy diagnostic code paths.
+- Legacy ASGI startup export now requires FEED_LEGACY_API_AUDIT_ENABLED=yes. Normal API wake-up no longer starts another full Shopify catalog scan on the ephemeral free instance.
+- XML preflight now checks timezone-aware availability_date for backorder/preorder; serializer preserves supplied availability_date instead of discarding it. It never invents a supplier delivery date.
+- Added durable feed-snapshot-diagnostics.json: per-snapshot checksum, timestamp, item count and XML quality issues for Google BG and FAVI BG. Original XML remains unchanged; local preflight is explicitly NOT destination acceptance or release readiness.
+- Added authenticated /feeds/diagnostics; returns 503 if this service cannot access the actual mounted report. The background worker disk is NOT shared with the separate free API; an authenticated shared artifact store remains necessary for remote XML/report delivery.
+- Deployment results and real catalog issue counts are recorded below only after verification.

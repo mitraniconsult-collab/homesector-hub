@@ -18,9 +18,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python -m pip install --disable-pip-version-check pytest requests fastapi
+      - run: python -m pip install --disable-pip-version-check pytest requests fastapi httpx
       - run: python -m compileall -q patches/worker/feeds
       - name: Offline feed regression tests
         env:
           PYTHONPATH: patches/worker
-        run: python -m pytest -q patches/worker/tests/test_feed_quality.py patches/worker/tests/test_category_mapping.py patches/worker/tests/test_feed_ids.py patches/worker/tests/test_favi_xml.py patches/worker/tests/test_shopify_translations.py patches/worker/tests/test_market_feed_rows.py patches/worker/tests/test_durable_journal.py patches/worker/tests/test_batch_job.py patches/worker/tests/test_xml_audit.py
+        run: python -m pytest -q patches/worker/tests/test_feed_quality.py patches/worker/tests/test_category_mapping.py patches/worker/tests/test_feed_ids.py patches/worker/tests/test_favi_xml.py patches/worker/tests/test_shopify_translations.py patches/worker/tests/test_market_feed_rows.py patches/worker/tests/test_durable_journal.py patches/worker/tests/test_batch_job.py patches/worker/tests/test_xml_audit.py patches/worker/tests/test_snapshot_audit.py patches/worker/tests/test_feed_api.py patches/worker/tests/test_meta_feed.py patches/worker/tests/test_feeds.py

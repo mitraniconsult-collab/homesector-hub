@@ -3,7 +3,7 @@ import os
 import unittest
 from unittest.mock import patch
 from fastapi import HTTPException
-from feeds.api import status
+from feeds.api import status, diagnostics, check
 from feeds.targets import targets
 
 class FeedStatusTests(unittest.TestCase):
@@ -28,6 +28,17 @@ class FeedStatusTests(unittest.TestCase):
             data = status(authorization="Bearer test-secret")
             self.assertEqual(len(data["feeds"]), 13)
             self.assertTrue(all(f["xml_url"] is None for f in data["feeds"]))
+
+    def test_diagnostics_require_auth_and_actual_shared_storage(self):
+        with patch.dict(os.environ, {"HUB_WORKER_TOKEN": "test-secret"}, clear=True):
+            with self.assertRaises(HTTPException) as ctx:
+                diagnostics(authorization="Bearer wrong")
+            self.assertEqual(ctx.exception.status_code, 401)
+            with self.assertRaises(HTTPException) as ctx:
+                diagnostics(authorization="Bearer test-secret")
+            self.assertEqual(ctx.exception.status_code, 503)
+            self.assertFalse(check()["snapshot_report_available"])
+            self.assertFalse(check()["legacy_api_audit_enabled"])
 
 if __name__ == "__main__":
     unittest.main()

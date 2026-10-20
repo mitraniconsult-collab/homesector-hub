@@ -4,6 +4,7 @@ Works on generated RSS 2.0 with Google namespace. Does not send any data.
 """
 from collections import Counter
 from decimal import Decimal, InvalidOperation
+from datetime import datetime
 from urllib.parse import urlsplit
 from xml.etree import ElementTree as ET
 from .config import MARKETS
@@ -50,6 +51,14 @@ def validate_xml(content, market="BG", max_issues=25):
                 issues.add("invalid_amount_or_currency")
         if data["availability"] not in ("in_stock", "out_of_stock", "backorder", "preorder"):
             issues.add("invalid_google_availability")
+        if data["availability"] in ("backorder", "preorder"):
+            date = (item.findtext(G + "availability_date") or "").strip()
+            try:
+                parsed_date = datetime.fromisoformat(date.replace("Z", "+00:00"))
+                if parsed_date.tzinfo is None:
+                    issues.add("invalid_backorder_availability_date")
+            except ValueError:
+                issues.add("invalid_backorder_availability_date")
         if data["condition"] not in ("new", "used", "refurbished"):
             issues.add("invalid_condition")
         if issues and len(examples) < max_issues:

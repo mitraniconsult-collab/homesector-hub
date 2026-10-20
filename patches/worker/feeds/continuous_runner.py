@@ -12,6 +12,7 @@ import sys
 import time
 from pathlib import Path
 from .batch_job import execute
+from .snapshot_audit import audit_snapshots
 
 _stop = False
 
@@ -50,10 +51,16 @@ def run():
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise RuntimeError("Another feed export already owns the persistent journal")
+        def log_snapshot_quality():
+            report = audit_snapshots(mount)
+            print("[feeds-quality] " + json.dumps(report, sort_keys=True), flush=True)
+
+        log_snapshot_quality()
         if os.getenv("FEED_FAVI_BG_PREVIEW") == "yes":
             from .favi_bg_preview import create_preview
             try:
                 report = create_preview(mount)
+                log_snapshot_quality()
                 print("[favi-bg-preview] " + json.dumps(report, ensure_ascii=False, sort_keys=True), flush=True)
             except Exception as exc:
                 print(f"[favi-bg-preview] FAILED type={type(exc).__name__} cause={str(exc)[:120]}", flush=True)
@@ -121,6 +128,7 @@ def run():
                     time.sleep(5)
                 break
             if result["status"] == "completed":
+                log_snapshot_quality()
                 print("[feeds-job] AUDIT COMPLETE; parked until explicitly configured to regenerate", flush=True)
                 while not _stop:
                     time.sleep(30)
