@@ -26,6 +26,7 @@ def _fields(item):
         "id": item.findtext(G + "id") or item.findtext("id") or "",
         "link": item.findtext(G + "link") or item.findtext("link") or "",
         "product_type": item.findtext(G + "product_type") or item.findtext("product_type") or "",
+        "google_product_category": item.findtext(G + "google_product_category") or item.findtext("google_product_category") or "",
         "price": item.findtext(G + "price") or item.findtext("price") or "",
     }
 
@@ -44,7 +45,7 @@ def compare(url, mount):
             key = _key(item.get("link"))
             if key:
                 canonical[key] = str(item.get("id", ""))
-    count, matched, no_id, empty_category, duplicate_id = 0, 0, 0, 0, 0
+    count, matched, no_id, empty_category, empty_both_categories, duplicate_id = 0, 0, 0, 0, 0, 0
     legacy_ids, examples, matches = set(), [], []
     with tempfile.TemporaryFile() as blob:
         with requests.get(url, stream=True, timeout=(15, 60), allow_redirects=False) as res:
@@ -68,6 +69,8 @@ def compare(url, mount):
             legacy_ids.add(item["id"])
             if not item["product_type"]:
                 empty_category += 1
+            if not item["product_type"] and not item["google_product_category"]:
+                empty_both_categories += 1
             key = _key(item["link"])
             if key and key in canonical:
                 matched += 1
@@ -77,7 +80,9 @@ def compare(url, mount):
             element.clear()
     report = {"legacy_items": count, "matched_by_product_variant_url": matched,
               "missing_id": no_id, "duplicate_id": duplicate_id,
-              "missing_category": empty_category, "new_journal_ids": len(canonical),
+              "missing_product_type": empty_category,
+              "missing_both_favi_category_fields": empty_both_categories,
+              "new_journal_ids": len(canonical),
               "sample_patterns": examples, "published": False}
     tmp = mount / "favi-reference-report.tmp"
     dest = mount / "favi-reference-report.json"
