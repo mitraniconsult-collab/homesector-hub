@@ -1,6 +1,10 @@
 # Homesector Feed Manager — standalone staging worker deployment plan
 
-**Status: READY FOR REVIEW; NOT PROVISIONED.** The current production Hub and Feedhub must not be changed.
+**Status: BLUEPRINT COMMITTED; NOT PROVISIONED.**
+
+A staging-only Render Blueprint is available in this feature branch: [`render.yaml`](../render.yaml). User should choose **New > Blueprint**, repo `mitraniconsult-collab/homesector-hub`, branch `feature/feeds-other-channels` (not main). Inspect the preflight cost and scope; click **Apply** only after confirming one worker / one 1GB disk. Shopify credentials are prompted with `sync: false` and must be entered directly in Render; do not send secrets in chat.
+
+Keep Feedhub active. Check worker logs for `[feeds-job] checkpoint` and prove restore before increasing batch size. The current production Hub and Feedhub must not be changed.
 
 ## Verified pricing (Render public pricing, 2026-10-20)
 
