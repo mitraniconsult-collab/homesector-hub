@@ -40,6 +40,10 @@ def audit_snapshots(mount):
     feeds = []
     for channel, filename in SNAPSHOTS.items():
         path = root / filename
+        if channel == "google":
+            corrected = root / "google-bg/google-bg-corrected-unpublished.xml"
+            if corrected.is_file():
+                path = corrected
         result = {"channel": channel, "market": "BG", "published": False,
                   "destination_accepted": False, "xml_url": None,
                   "release_ready": False}

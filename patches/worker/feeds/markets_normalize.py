@@ -2,6 +2,7 @@
 import re
 from html import unescape
 from .config import MARKETS
+from .availability import arrival_timestamp, feed_availability
 
 def plain_text(html):
     return unescape(re.sub(r"<[^>]+>", " ", html or "")).strip()
@@ -25,6 +26,9 @@ def normalize_market(product, country):
         if not image:
             continue
         quantity = variant.get("inventoryQuantity") or 0
+        arrival = (variant.get("expectedArrival") or {}).get("value")
+        if not arrival and (product.get("variantsCount") or {}).get("count") == 1:
+            arrival = (product.get("expectedArrival") or {}).get("value")
         output.append({
             "id": variant.get("id"), "title": product.get("title"),
             "description": plain_text(product.get("descriptionHtml")),
@@ -36,6 +40,8 @@ def normalize_market(product, country):
             "price": money["amount"], "currency": money["currencyCode"],
             "active": True, "published": True, "available": quantity > 0,
             "continue_selling": variant.get("inventoryPolicy") == "CONTINUE",
-            "markets": [country],
+            "markets": [country], "inventory_quantity": quantity,
+            "expected_arrival": arrival, "availability_date": arrival_timestamp(arrival),
         })
+        output[-1]["availability"] = feed_availability(output[-1])
     return output

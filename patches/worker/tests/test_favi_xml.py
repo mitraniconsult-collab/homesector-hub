@@ -24,7 +24,7 @@ def test_favi_rejects_missing_market_category():
     assert "unverified_favi_category" in validate(row, "BG")
 
 def test_favi_requires_date_for_backorder():
-    row = {**BASE, "available": False, "continue_selling": True}
+    row = {**BASE, "available": False, "continue_selling": True, "availability": "backorder"}
     assert "invalid_backorder_availability_date" in validate(row, "BG")
     row["availability_date"] = "2026-11-25T13:00:00+02:00"
     assert "invalid_backorder_availability_date" not in validate(row, "BG")

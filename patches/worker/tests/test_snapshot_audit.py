@@ -44,7 +44,7 @@ def test_backorders_are_reported_as_blocking_without_modifying_xml(monkeypatch, 
     monkeypatch.setattr(snapshot_audit.os.path, "ismount", lambda path: True)
     folder = tmp_path / "google-bg"
     folder.mkdir()
-    row = {**good_row(), "available": False, "continue_selling": True}
+    row = {**good_row(), "available": False, "continue_selling": True, "availability": "backorder"}
     xml = generate([row], "BG", "google")
     (folder / "google-bg-unpublished.xml").write_bytes(xml)
     google = snapshot_audit.audit_snapshots(tmp_path)["feeds"][0]

@@ -69,7 +69,10 @@ def create_preview(mount):
                 historic[gid] = oldid
     prepared, causes, per_path = [], Counter(), Counter()
     new_ids, old_ids = 0, 0
-    with (root / "google-bg/records.jsonl").open(encoding="utf-8") as f:
+    records_path = root / "google-bg/availability-corrected-records.jsonl"
+    if not records_path.exists():
+        records_path = root / "google-bg/records.jsonl"
+    with records_path.open(encoding="utf-8") as f:
         for line in f:
             row = json.loads(line)
             handle = handle_from_link(row.get("link"))

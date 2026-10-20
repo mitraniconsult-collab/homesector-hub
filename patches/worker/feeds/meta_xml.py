@@ -3,6 +3,7 @@ Do not publish externally before Meta Commerce Manager validation.
 """
 from collections import Counter
 from xml.etree import ElementTree as ET
+from .availability import feed_availability
 from .config import MARKETS
 from .channel_quality import check_product
 from .xml_export import GOOGLE_NS
@@ -38,7 +39,7 @@ def generate_meta(rows, market):
                       "brand", "gtin", "mpn", "product_type", "item_group_id"):
             _add(item, field, row.get(field))
         _add(item, "price", str(row["price"]) + " " + row["currency"])
-        _add(item, "availability", "in stock" if row.get("available") else "available for order")
+        _add(item, "availability", "in stock" if feed_availability(row) == "in_stock" else "available for order")
         _add(item, "condition", "new")
         accepted += 1
     return ET.tostring(rss, encoding="utf-8", xml_declaration=True), {

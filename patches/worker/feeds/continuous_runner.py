@@ -55,6 +55,10 @@ def run():
             report = audit_snapshots(mount)
             print("[feeds-quality] " + json.dumps(report, sort_keys=True), flush=True)
 
+        if (Path(mount) / "google-bg/manifest.json").exists():
+            from .availability_refresh import refresh
+            report = refresh(mount)
+            print("[feed-availability] " + json.dumps(report, sort_keys=True), flush=True)
         log_snapshot_quality()
         if os.getenv("FEED_FAVI_BG_PREVIEW") == "yes":
             from .favi_bg_preview import create_preview

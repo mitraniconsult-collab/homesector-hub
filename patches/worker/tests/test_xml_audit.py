@@ -30,7 +30,7 @@ def test_wrong_country_domain_cannot_pass():
 
 
 def test_backorder_requires_timezone_aware_availability_date():
-    row = {**good_row(), "available": False, "continue_selling": True}
+    row = {**good_row(), "available": False, "continue_selling": True, "availability": "backorder"}
     for date in (None, "", "tomorrow", "2026-12-01T12:00:00"):
         content = generate([{**row, "availability_date": date}], "BG", "google")
         report = validate_xml(content)
@@ -42,7 +42,7 @@ def test_backorder_requires_timezone_aware_availability_date():
 
 def test_private_preview_preserves_valid_ids_and_reports_all_exclusions():
     healthy = good_row()
-    backorder = {**healthy, "id": "backordered", "available": False, "continue_selling": True}
+    backorder = {**healthy, "id": "backordered", "available": False, "continue_selling": True, "availability": "backorder"}
     missing = {**healthy, "id": "missing", "description": ""}
     source = generate([healthy, backorder, missing, healthy], "BG", "google")
     preview, report = validated_preview(source)

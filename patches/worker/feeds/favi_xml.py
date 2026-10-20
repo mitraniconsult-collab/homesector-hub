@@ -9,6 +9,7 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from urllib.parse import urlsplit
 from xml.etree import ElementTree as ET
+from .availability import feed_availability
 from .config import MARKETS
 from .feed_ids import is_safe_favi_id
 from .channel_quality import check_product
@@ -22,7 +23,7 @@ def validate(row, market):
         issues.append("invalid_favi_alphanumeric_id")
     if row.get("item_group_id") and not is_safe_favi_id(row["item_group_id"]):
         issues.append("invalid_favi_group_id")
-    if not row.get("available"):
+    if feed_availability(row) in ("backorder", "preorder"):
         date = str(row.get("availability_date") or "").strip()
         try:
             dated = datetime.fromisoformat(date.replace("Z", "+00:00"))
@@ -69,8 +70,8 @@ def generate_favi(rows, market="BG"):
                       "product_type", "brand", "gtin", "mpn", "item_group_id"):
             _g(item, field, row.get(field))
         _g(item, "price", f"{row['price']} {row['currency']}")
-        _g(item, "availability", "in_stock" if row.get("available") else "backorder")
-        if not row.get("available") and row.get("availability_date"):
+        _g(item, "availability", feed_availability(row))
+        if feed_availability(row) in ("backorder", "preorder") and row.get("availability_date"):
             _g(item, "availability_date", row["availability_date"])
         _g(item, "condition", "new")
         count += 1

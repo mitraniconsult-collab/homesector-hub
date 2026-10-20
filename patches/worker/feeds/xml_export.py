@@ -1,5 +1,6 @@
 """XML serializers for feed export. Input is a list of normalized Shopify variants."""
 from xml.etree import ElementTree as ET
+from .availability import feed_availability
 from .config import MARKETS, CHANNELS, eligible
 
 GOOGLE_NS = "http://base.google.com/ns/1.0"
@@ -26,8 +27,8 @@ def generate(products, market, channel):
         for field in ("id", "title", "description", "link", "image_link", "brand", "gtin", "mpn", "product_type"):
             add(item, "{" + GOOGLE_NS + "}" + field, p.get(field))
         add(item, "{" + GOOGLE_NS + "}price", str(p["price"]) + " " + p["currency"])
-        add(item, "{" + GOOGLE_NS + "}availability", "in_stock" if p.get("available") else "backorder")
-        if not p.get("available"):
+        add(item, "{" + GOOGLE_NS + "}availability", feed_availability(p))
+        if feed_availability(p) in ("backorder", "preorder"):
             add(item, "{" + GOOGLE_NS + "}availability_date", p.get("availability_date"))
         add(item, "{" + GOOGLE_NS + "}condition", "new")
     return ET.tostring(root, encoding="utf-8", xml_declaration=True)

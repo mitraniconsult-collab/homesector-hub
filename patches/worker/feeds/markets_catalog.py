@@ -49,12 +49,15 @@ def catalog_query():
         pageInfo { hasNextPage endCursor }
         nodes {
           id title handle descriptionHtml status vendor productType
+          variantsCount { count }
+          expectedArrival: metafield(namespace: "custom", key: "expected_arrival") { value }
           featuredImage { url }
           """ + publication + """
           variants(first: 25) {
             pageInfo { hasNextPage endCursor }
             nodes {
               id sku barcode inventoryQuantity inventoryPolicy
+              expectedArrival: metafield(namespace: "custom", key: "expected_arrival") { value }
               image { url }
               """ + pricing + """
             }
@@ -115,6 +118,7 @@ def read_remaining_variants(url, token, product_id, cursor):
           pageInfo { hasNextPage endCursor }
           nodes {
             id sku barcode inventoryQuantity inventoryPolicy
+              expectedArrival: metafield(namespace: "custom", key: "expected_arrival") { value }
             image { url }
             """ + pricing + """
           }
