@@ -17,3 +17,10 @@ def status(authorization: str | None = Header(default=None)):
          "product_count": None, "last_updated": None, "xml_url": None}
         for channel, market in targets()
     ]}
+
+@router.get("/check")
+def check():
+    """Safe public smoke test: no credentials, product data, or private feed URLs."""
+    return {"ok": True, "module": "feed-manager", "configured_feeds": len(targets()),
+            "api_auth_configured": bool(os.environ.get("HUB_WORKER_TOKEN")),
+            "feeds_published": False}
