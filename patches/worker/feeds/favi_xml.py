@@ -21,8 +21,8 @@ def validate(row, market):
     issues = check_product(row, market, "favi")
     if not is_safe_favi_id(row.get("id")):
         issues.append("invalid_favi_alphanumeric_id")
-    if row.get("item_group_id") and not is_safe_favi_id(row["item_group_id"]):
-        issues.append("invalid_favi_group_id")
+    if not is_safe_favi_id(row.get("item_group_id")):
+        issues.append("missing_or_invalid_favi_group_id")
     if feed_availability(row) in ("backorder", "preorder"):
         date = str(row.get("availability_date") or "").strip()
         try:
@@ -67,7 +67,7 @@ def generate_favi(rows, market="BG"):
         seen_urls.add(link)
         item = ET.SubElement(channel, "item")
         for field in ("id", "title", "description", "link", "image_link",
-                      "product_type", "brand", "gtin", "mpn", "item_group_id"):
+                      "product_type", "brand", "gtin", "mpn", "item_group_id", "color"):
             _g(item, field, row.get(field))
         _g(item, "price", f"{row['price']} {row['currency']}")
         _g(item, "availability", feed_availability(row))
