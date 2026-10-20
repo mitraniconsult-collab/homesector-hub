@@ -6,36 +6,20 @@ advancing its cursor. No feed is published externally.
 """
 import json
 import os
-import time
 from pathlib import Path
 from xml.etree import ElementTree as ET
-import requests
 from .config import eligible
 from .durable_journal import DurableJournal
-from .markets_catalog import catalog_query, read_remaining_variants
+from .markets_catalog import catalog_query, read_remaining_variants, shopify_post
 from .markets_normalize import normalize_market
 from .shopify_auth import get_admin_token
 from .xml_export import generate
 
 def post_graphql(url, token, query, variables):
-    for attempt in range(6):
-        try:
-            response = requests.post(url, json={"query": query, "variables": variables},
-                headers={"X-Shopify-Access-Token": token}, timeout=60)
-            if response.status_code in (429, 500, 502, 503, 504):
-                if attempt < 5:
-                    time.sleep(min(30, 2 ** attempt))
-                    continue
-            response.raise_for_status()
-            payload = response.json()
-            if payload.get("errors") or not payload.get("data"):
-                raise RuntimeError("Shopify GraphQL query rejected")
-            return payload["data"]
-        except (requests.Timeout, requests.ConnectionError):
-            if attempt == 5:
-                raise
-            time.sleep(min(30, 2 ** attempt))
-    raise RuntimeError("Shopify catalog retry limit reached")
+    payload = shopify_post(url, token, {"query": query, "variables": variables})
+    if payload.get("errors") or not payload.get("data"):
+        raise RuntimeError("Shopify GraphQL query rejected")
+    return payload["data"]
 
 def execute(batch_limit=100, root=None, store=None, token=None):
     if not isinstance(batch_limit, int) or not 1 <= batch_limit <= 1000:
