@@ -5,9 +5,37 @@ Does not assume all countries share the store's base prices.
 """
 import os
 import requests
+import time
 from .shopify_auth import get_admin_token
 
 COUNTRIES = ("BG", "RO", "GR", "HU")
+
+def shopify_post(url, token, payload):
+    """Bounded retries for temporary Shopify API failures."""
+    for attempt in range(6):
+        try:
+            response = requests.post(
+                url, headers={"X-Shopify-Access-Token": token},
+                json=payload, timeout=60)
+            if response.status_code in (429, 500, 502, 503, 504):
+                if attempt < 5:
+                    delay = min(30, 2 ** attempt)
+                    retry_after = response.headers.get("Retry-After")
+                    if retry_after:
+                        try:
+                            delay = min(60, max(delay, float(retry_after)))
+                        except ValueError:
+                            pass
+                    time.sleep(delay)
+                    continue
+            response.raise_for_status()
+            return response.json()
+        except (requests.Timeout, requests.ConnectionError):
+            if attempt == 5:
+                raise
+            time.sleep(min(30, 2 ** attempt))
+    raise RuntimeError("Shopify retry limit reached")
+
 
 def catalog_query():
     publication = "\n".join(
@@ -48,10 +76,7 @@ def read_markets_catalog(store=None, token=None, version="2026-07", max_pages=10
     url = f"https://{store}/admin/api/{version}/graphql.json"
     cursor = None
     for _ in range(max_pages):
-        response = requests.post(url, headers={"X-Shopify-Access-Token": token},
-                                 json={"query": catalog_query(), "variables": {"cursor": cursor}}, timeout=60)
-        response.raise_for_status()
-        payload = response.json()
+        payload = shopify_post(url, token, {"query": catalog_query(), "variables": {"cursor": cursor}})
         if payload.get("errors"):
             codes = {str((item.get("extensions") or {}).get("code", "")).upper()
                      for item in payload["errors"] if isinstance(item, dict)}
@@ -103,12 +128,7 @@ def read_remaining_variants(url, token, product_id, cursor):
     """
     all_variants = []
     for _ in range(1000):
-        response = requests.post(
-            url, headers={"X-Shopify-Access-Token": token},
-            json={"query": query, "variables": {"productId": product_id, "cursor": cursor}},
-            timeout=60)
-        response.raise_for_status()
-        payload = response.json()
+        payload = shopify_post(url, token, {"query": query, "variables": {"productId": product_id, "cursor": cursor}})
         if payload.get("errors") or not (payload.get("data") or {}).get("product"):
             raise RuntimeError("Shopify variant pagination query failed")
         page = payload["data"]["product"]["variants"]
