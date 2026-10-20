@@ -113,6 +113,9 @@ class ImageRunRequest(BaseModel):
 
 @app.on_event("startup")
 def recover_image_jobs():
+    # The feed-only staging service must never run the live image repair queue.
+    if os.environ.get("RENDER_SERVICE_NAME") == "homesector-worker-feed-staging":
+        return
     IMAGE_JOBS.wake()
 
 @app.on_event("shutdown")
@@ -145,3 +148,84 @@ def image_job_control(action: str, authorization: str | None = Header(default=No
 def image_job_report(authorization: str | None = Header(default=None)):
     auth(authorization)
     return Response(IMAGE_JOBS.report(),media_type="text/csv",headers={"Content-Disposition":"attachment; filename=product-images.csv"})
+
+from feeds.api import router as feeds_router
+app.include_router(feeds_router)
+
+# Feed-only staging: one read-only Shopify connectivity check during startup.
+# Log only status and error class, never tokens or catalog content.
+@app.on_event("startup")
+def probe_feed_shopify_staging():
+    if os.environ.get("RENDER_SERVICE_NAME") != "homesector-worker-feed-staging":
+        return
+    def probe():
+        stage = "credentials"
+        try:
+            from feeds.shopify_auth import get_admin_token
+            from feeds.markets_catalog import read_markets_catalog
+            store = os.environ.get("SHOPIFY_STORE", "").strip()
+            if not store or not store.endswith(".myshopify.com"):
+                print("[feeds] Shopify diagnostic: STORE_HOST_MISSING_OR_INVALID", flush=True)
+                return
+            if not (os.environ.get("SHOPIFY_ADMIN_ACCESS_TOKEN") or
+                    (os.environ.get("SHOPIFY_CLIENT_ID") and os.environ.get("SHOPIFY_CLIENT_SECRET"))):
+                print("[feeds] Shopify diagnostic: ACCESS_CREDENTIALS_MISSING", flush=True)
+                return
+            access_token = get_admin_token(store)
+            # Test product reads and country-specific fields separately without logging sensitive values.
+            import requests as _requests
+            endpoint = f"https://{store}/admin/api/2026-07/graphql.json"
+            checks = (
+                ("PRODUCTS", "{ products(first: 1) { nodes { id title } } }"),
+                ("MARKET_PUBLICATION", "{ products(first: 1) { nodes { id publishedInContext(context: {country: BG}) } } }"),
+                ("MARKET_PRICING", "{ products(first: 1) { nodes { variants(first: 1) { nodes { contextualPricing(context: {country: BG}) { price { amount currencyCode } } } } } } }"),
+                ("INVENTORY", "{ products(first: 1) { nodes { variants(first: 1) { nodes { inventoryQuantity } } } } }"),
+            )
+            for label, query in checks:
+                check_response = _requests.post(
+                    endpoint, headers={"X-Shopify-Access-Token": access_token},
+                    json={"query": query}, timeout=20)
+                check_response.raise_for_status()
+                data = check_response.json()
+                denied = bool(data.get("errors")) or not data.get("data", {}).get("products")
+                print(f"[feeds] Shopify scope probe {label}: {'DENIED' if denied else 'OK'}", flush=True)
+            stage = "catalog_query"
+            iterator = read_markets_catalog(store=store, max_pages=1)
+            first = next(iterator, None)
+            print("[feeds] Shopify diagnostic: CATALOG_OK" if first else "[feeds] Shopify diagnostic: CATALOG_EMPTY", flush=True)
+            if first:
+                from itertools import islice
+                from feeds.preview import preview as _preview
+                sample = _preview(list(islice(read_markets_catalog(), 5)), "BG", "google")
+                print("[feeds] Google BG XML preview: VALID items=" +
+                      str(sample["items_exported"]) +
+                      " scanned=" + str(sample["products_scanned"]), flush=True)
+        except Exception as exc:
+            import requests
+            category = "UNEXPECTED_ERROR"
+            if isinstance(exc, requests.HTTPError):
+                code = exc.response.status_code if exc.response is not None else 0
+                category = f"SHOPIFY_HTTP_{code}"
+            elif isinstance(exc, requests.Timeout):
+                category = "SHOPIFY_TIMEOUT"
+            elif isinstance(exc, RuntimeError):
+                category = (str(exc) if str(exc) in {
+                    "SHOPIFY_GRAPHQL_QUERY_COST", "SHOPIFY_GRAPHQL_ACCESS_DENIED",
+                    "SHOPIFY_GRAPHQL_SCHEMA_MISMATCH", "SHOPIFY_GRAPHQL_REJECTED"}
+                    else ("CATALOG_GRAPHQL_REJECTED" if stage == "catalog_query"
+                          else "TOKEN_EXCHANGE_FAILED"))
+            elif isinstance(exc, ValueError):
+                category = "CONFIG_VALIDATION_ERROR"
+            print(f"[feeds] Shopify diagnostic: {stage.upper()}_{category}", flush=True)
+    threading.Thread(target=probe, daemon=True, name="feed-staging-probe").start()
+
+from feeds.sample_api import router as feed_preview_router
+app.include_router(feed_preview_router)
+
+from feeds.full_audit import router as google_bg_full_audit_router, start_once as start_google_bg_audit
+app.include_router(google_bg_full_audit_router)
+
+@app.on_event("startup")
+def run_google_bg_staging_audit():
+    if start_google_bg_audit():
+        print("[feeds] BG full audit STARTED (staging only, unpublished)", flush=True)
