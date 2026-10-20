@@ -1,0 +1,65 @@
+"""Isolated Homesector feed background-worker entrypoint.
+
+Use with Render Background Worker (paid) and an attached persistent disk.
+Do not run under Uvicorn or on an ephemeral Render Free web service.
+No data is published to Google/Meta/FAVI/Biano by this runner.
+"""
+import fcntl
+import json
+import os
+import signal
+import sys
+import time
+from pathlib import Path
+from .batch_job import execute
+
+_stop = False
+
+def request_stop(_signum, _frame):
+    global _stop
+    _stop = True
+
+def run():
+    if os.getenv("FEED_DURABLE_STORAGE_CONFIRMED") != "yes":
+        raise RuntimeError("Durable volume is not confirmed")
+    mount = os.getenv("FEED_DURABLE_PATH", "").strip()
+    if not mount or not Path(mount).is_dir():
+        raise RuntimeError("Persistent feed mount is missing")
+    if os.getenv("FEED_BG_JOB_ENABLED") != "yes":
+        raise RuntimeError("Worker has not been explicitly enabled")
+    page_limit = int(os.getenv("FEED_JOB_PAGE_LIMIT", "25"))
+    if page_limit < 1 or page_limit > 1000:
+        raise ValueError("Invalid page limit")
+    interval = int(os.getenv("FEED_RUN_INTERVAL_SECONDS", "30"))
+    if not 5 <= interval <= 3600:
+        raise ValueError("Invalid batch interval")
+    signal.signal(signal.SIGTERM, request_stop)
+    signal.signal(signal.SIGINT, request_stop)
+    lockfile = Path(mount) / "google-bg-single-writer.lock"
+    with lockfile.open("a+b") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise RuntimeError("Another feed export already owns the persistent journal")
+        print("[feeds-job] worker STARTED unpublished read-only BG export", flush=True)
+        while not _stop:
+            try:
+                result = execute(batch_limit=page_limit)
+            except Exception as exc:
+                # Never log env vars or credentials.
+                print(f"[feeds-job] FAILED type={type(exc).__name__}", flush=True)
+                raise
+            print("[feeds-job] " + json.dumps(result, sort_keys=True), flush=True)
+            if result["status"] == "completed":
+                print("[feeds-job] AUDIT COMPLETE; parked until explicitly configured to regenerate", flush=True)
+                while not _stop:
+                    time.sleep(30)
+                break
+            slept = 0
+            while slept < interval and not _stop:
+                time.sleep(min(5, interval - slept))
+                slept += min(5, interval - slept)
+        print("[feeds-job] stopped cleanly", flush=True)
+
+if __name__ == "__main__":
+    run()
