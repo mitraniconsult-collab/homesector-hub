@@ -17,6 +17,57 @@ from .favi_xml import generate_favi
 from .feed_ids import is_safe_favi_id, variant_feed_id
 
 FAVI_CATEGORY_LIST = "https://favi.bg/partner-dashboard/category-list"
+# Partial official BG taxonomy snapshot, transcribed from FAVI's public category
+# list on 2026-10-20. This is NOT the full live taxonomy or category approval.
+VERIFIED_SAMPLE = [
+    "градина > градински постройки > перголи",
+    "градина > градински постройки > беседки",
+    "градина > градински столове",
+    "градина > градински маси",
+    "градина > градински комплекти",
+    "градина > градински люлки",
+    "градина > градински пейки",
+    "градина > шезлонги",
+    "градина > градински текстил > покривала за градински мебели",
+    "градина > градински текстил > градински възглавници",
+    "градина > чадъри и сенници > градински чадъри",
+    "градина > чадъри и сенници > стойки за чадъри",
+    "градина > градинарство > цветарници",
+    "декорация > вази",
+    "декорация > картини",
+    "декорация > декоративни купи",
+    "декорация > декорация за дома > статуетки",
+    "декорация > декорация за детската стая > детски огледала",
+    "коридор и антре > огледала",
+    "коридор и антре > конзолни маси",
+    "коридор и антре > закачалки за антре",
+    "коридор и антре > поставки за чадъри",
+    "коридор и антре > шкафове за обувки",
+    "кухня и трапезария > готвене > тигани",
+    "кухня и трапезария > готвене > тенджери",
+    "кухня и трапезария > готвене > дъски за рязане",
+    "кухня и трапезария > за печене > тави за печене",
+    "кухня и трапезария > за печене > форми за печене",
+    "мебели > системи за съхранение > гардероби",
+    "мебели > системи за съхранение > детски рафтове",
+    "мебели > системи за съхранение > рафтове за стена",
+    "мебели > системи за съхранение > скринове",
+    "мебели > системи за съхранение > стелажи",
+    "мебели > системи за съхранение > кутии и органайзери",
+    "мебели > столове > бар столове",
+    "мебели > столове > трапезни столове",
+    "мебели > столове > офис столове",
+    "мебели > столове > детски столове и кресла > детски столчета",
+    "мебели > шкафове и гардероби > кухненски шкафове",
+    "мебели > шкафове и гардероби > детски гардероби",
+    "мебели > шкафове и гардероби > витрини",
+    "мебели > стойки и закачалки > детски закачалки",
+    "обзавеждане за баня > аксесоари за баня > завеси за баня",
+    "Коледа > коледни елхи и цветя > коледни елхи",
+    "Коледа > коледни венци",
+    "Коледа > коледни свещи",
+    "Коледа > коледни свещници",
+]
 
 class CategoryLinks(HTMLParser):
     def __init__(self):
@@ -54,9 +105,14 @@ def audit(mount):
     manifest = json.loads((mount / "google-bg/manifest.json").read_text())
     if not manifest.get("finished"):
         raise RuntimeError("Full Google BG journal is required")
-    categories = read_taxonomy()
-    if len(categories) < 100:
-        raise RuntimeError("Public FAVI category list could not be parsed adequately")
+    taxonomy_live = True
+    try:
+        categories = read_taxonomy()
+        if len(categories) < 100:
+            raise RuntimeError("FAVI category page has too few parsed categories")
+    except (requests.RequestException, RuntimeError):
+        taxonomy_live = False
+        categories = VERIFIED_SAMPLE
     index = defaultdict(set)
     for cat in categories:
         index[leaf(cat)].add(cat)
@@ -95,7 +151,8 @@ def audit(mount):
     report = {
         "mode": "unpublished_category_audit",
         "catalog_rows": stats["rows"],
-        "official_favi_paths": len(categories),
+        "official_favi_paths_considered": len(categories),
+        "complete_live_taxonomy": taxonomy_live,
         "historical_id_rows": len(historical),
         "historical_id_with_disallowed_chars": stats["historic_id_needs_review"],
         "unique_exact_leaf_candidates": stats["unique_exact_leaf_candidate"],
