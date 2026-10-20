@@ -57,6 +57,7 @@ def catalog_query(bg_only=False):
             pageInfo { hasNextPage endCursor }
             nodes {
               id displayName sku barcode inventoryQuantity inventoryPolicy
+              selectedOptions { name value }
               expectedArrival: metafield(namespace: "custom", key: "expected_arrival") { value }
               image { url }
               """ + pricing + """
@@ -123,6 +124,7 @@ def read_remaining_variants(url, token, product_id, cursor, bg_only=False):
           pageInfo { hasNextPage endCursor }
           nodes {
             id displayName sku barcode inventoryQuantity inventoryPolicy
+              selectedOptions { name value }
               expectedArrival: metafield(namespace: "custom", key: "expected_arrival") { value }
             image { url }
             """ + pricing + """
