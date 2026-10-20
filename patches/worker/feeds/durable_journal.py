@@ -57,3 +57,35 @@ class DurableJournal:
             os.fsync(fh.fileno())
         os.replace(temp, self.manifest)
         return new_meta
+
+    def append_page(self, cursor, page_rows, products, finished=False):
+        """Efficiently commit one Shopify page; avoid rereading all feed rows."""
+        if self.manifest.exists():
+            old = json.loads(self.manifest.read_text(encoding="utf-8"))
+            if not self.records.exists() or self.records.stat().st_size < old["bytes"]:
+                raise RuntimeError("Missing checkpoint content")
+        else:
+            if self.records.exists():
+                raise RuntimeError("Orphaned journal")
+            old = {"products": 0, "items": 0, "bytes": 0, "finished": False}
+        if old["finished"] or products <= old["products"] or not cursor:
+            if not (finished and products > old["products"] and not cursor):
+                raise RuntimeError("Invalid page boundary or finished checkpoint")
+        with self.records.open("a+b") as fh:
+            fh.truncate(old["bytes"])
+            fh.seek(old["bytes"])
+            for row in page_rows:
+                fh.write((json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8"))
+            fh.flush()
+            os.fsync(fh.fileno())
+            byte_count = fh.tell()
+        meta = {"cursor": cursor, "products": products,
+                "items": old["items"] + len(page_rows),
+                "bytes": byte_count, "finished": bool(finished)}
+        tmp = self.manifest.with_suffix(".tmp")
+        with tmp.open("w", encoding="utf-8") as fh:
+            json.dump(meta, fh)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, self.manifest)
+        return meta
