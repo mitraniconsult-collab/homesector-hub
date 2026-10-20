@@ -38,3 +38,20 @@ def test_favi_duplicate_url_prevents_catalog_merge():
     data, report = generate_favi(rows, "BG")
     assert report["items_exported"] == 1
     assert report["excluded_reasons"]["duplicate_or_missing_url"] == 1
+
+
+def test_color_variants_share_group_but_keep_unique_offer_ids():
+    second = {**BASE, "id": "shopifyv18", "color": "Син",
+              "link": "https://homesector.bg/products/masa?variant=18"}
+    first = {**BASE, "color": "Червен"}
+    data, report = generate_favi([first, second], "BG")
+    items = ET.fromstring(data).findall("./channel/item")
+    ns = {"g": "http://base.google.com/ns/1.0"}
+    assert report["items_exported"] == 2
+    assert [x.findtext("g:id", namespaces=ns) for x in items] == ["shopifyv17", "shopifyv18"]
+    assert [x.findtext("g:item_group_id", namespaces=ns) for x in items] == ["shopifyp12"] * 2
+    assert [x.findtext("g:color", namespaces=ns) for x in items] == ["Червен", "Син"]
+
+
+def test_favi_rejects_ungrouped_variant():
+    assert "missing_or_invalid_favi_group_id" in validate({**BASE, "item_group_id": None}, "BG")
