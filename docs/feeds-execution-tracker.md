@@ -11,7 +11,7 @@ Updated: 2026-10-20. This file tracks *verified facts* versus untested implement
 | BG-03 | Full Google BG catalog audit | RUNNING / NOT VERIFIED COMPLETE | Staging deployed commit bed66f4. Last read: 3,900 products scanned; 3,734 candidate variants. Check for explicit COMPLETED or FAILED |
 | BG-04 | Full feed compliance, sample merchant acceptance | BLOCKED BY BG-03 | Review exclusions, Google schema, variant and stock semantics; compare Feedhub before switching |
 | CORE-01 | Handle >25 variants via Shopify GraphQL pagination | CODE DEPLOYED | Commit e419d8e; end-to-end large-variant fixture remains required |
-| CORE-02 | Read translated titles/descriptions and market-correct handles | TODO | Current serializer reads base product copy; cannot claim market localization |
+| CORE-02 | Read translated titles/descriptions and market-correct handles | PARTIAL / UNTESTED | Shopify verified RO/EL/HU translations for a Quttin product; localization.py applies verified copy, but fetching at scale and URL checks are pending |
 | CORE-03 | Validate market publication/pricing/inventory | VERIFIED ON SAMPLE | Shopify live query and Render startup checks OK |
 | CORE-04 | Persistent storage, atomic publish, last known good | TODO | Current Render /tmp is ephemeral |
 | CORE-05 | Retry/rate limit for full catalog | CODE DEPLOYED | bed66f4; audit progressed past earlier 2,600-product failure |
