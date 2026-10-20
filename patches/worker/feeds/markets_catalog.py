@@ -68,13 +68,13 @@ def catalog_query():
     }
     """
 
-def read_markets_catalog(store=None, token=None, version="2026-07", max_pages=10000):
+def read_markets_catalog(store=None, token=None, version="2026-07", max_pages=10000, start_cursor=None, on_page_done=None):
     store = (store or os.environ.get("SHOPIFY_STORE", "")).strip()
     token = token or get_admin_token(store)
     if not store.endswith(".myshopify.com") or not token:
         raise ValueError("Valid SHOPIFY_STORE and SHOPIFY_ADMIN_ACCESS_TOKEN required")
     url = f"https://{store}/admin/api/{version}/graphql.json"
-    cursor = None
+    cursor = start_cursor
     for _ in range(max_pages):
         payload = shopify_post(url, token, {"query": catalog_query(), "variables": {"cursor": cursor}})
         if payload.get("errors"):
@@ -97,6 +97,8 @@ def read_markets_catalog(store=None, token=None, version="2026-07", max_pages=10
                                             product["variants"]["pageInfo"]["endCursor"]))
                 product["variants"]["pageInfo"]["hasNextPage"] = False
             yield product
+        if on_page_done is not None:
+            on_page_done(page["pageInfo"]["endCursor"], page["pageInfo"]["hasNextPage"])
         if not page["pageInfo"]["hasNextPage"]:
             return
         cursor = page["pageInfo"]["endCursor"]
