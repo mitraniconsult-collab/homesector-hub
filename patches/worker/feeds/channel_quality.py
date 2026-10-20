@@ -30,6 +30,8 @@ def check_product(row, market, channel):
             problems.append("invalid_price")
     except (InvalidOperation, TypeError, ValueError):
         problems.append("invalid_price")
+    if row.get("link") and urlparse(str(row["link"])).hostname != MARKETS[market]["domain"]:
+        problems.append("wrong_market_domain")
     for field in ("link", "image_link"):
         if row.get(field):
             u = urlparse(str(row[field]))
@@ -37,6 +39,8 @@ def check_product(row, market, channel):
                 problems.append("invalid_" + field)
     if channel == "favi" and not row.get("product_type"):
         problems.append("missing_favi_category")
+    if channel == "favi" and market != "BG" and not row.get("category_verified_for_market"):
+        problems.append("unverified_favi_category_translation")
     # The current catalog query uses the base product language. For non-BG
     # publishing require positive evidence of localized copy/URL.
     if market != "BG":
