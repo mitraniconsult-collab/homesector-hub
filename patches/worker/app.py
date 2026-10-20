@@ -185,7 +185,11 @@ def probe_feed_shopify_staging():
             elif isinstance(exc, requests.Timeout):
                 category = "SHOPIFY_TIMEOUT"
             elif isinstance(exc, RuntimeError):
-                category = "CATALOG_GRAPHQL_REJECTED" if stage == "catalog_query" else "TOKEN_EXCHANGE_FAILED"
+                category = (str(exc) if str(exc) in {
+                    "SHOPIFY_GRAPHQL_QUERY_COST", "SHOPIFY_GRAPHQL_ACCESS_DENIED",
+                    "SHOPIFY_GRAPHQL_SCHEMA_MISMATCH", "SHOPIFY_GRAPHQL_REJECTED"}
+                    else ("CATALOG_GRAPHQL_REJECTED" if stage == "catalog_query"
+                          else "TOKEN_EXCHANGE_FAILED"))
             elif isinstance(exc, ValueError):
                 category = "CONFIG_VALIDATION_ERROR"
             print(f"[feeds] Shopify diagnostic: {stage.upper()}_{category}", flush=True)
