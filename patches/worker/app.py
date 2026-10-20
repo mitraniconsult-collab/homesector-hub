@@ -151,3 +151,19 @@ def image_job_report(authorization: str | None = Header(default=None)):
 
 from feeds.api import router as feeds_router
 app.include_router(feeds_router)
+
+# Feed-only staging: one read-only Shopify connectivity check during startup.
+# Log only status and error class, never tokens or catalog content.
+@app.on_event("startup")
+def probe_feed_shopify_staging():
+    if os.environ.get("RENDER_SERVICE_NAME") != "homesector-worker-feed-staging":
+        return
+    def probe():
+        try:
+            from feeds.markets_catalog import read_markets_catalog
+            iterator = read_markets_catalog(max_pages=1)
+            first = next(iterator, None)
+            print("[feeds] Shopify read-only check: OK" if first else "[feeds] Shopify read-only check: EMPTY", flush=True)
+        except Exception as exc:
+            print(f"[feeds] Shopify read-only check: FAILED ({type(exc).__name__})", flush=True)
+    threading.Thread(target=probe, daemon=True, name="feed-staging-probe").start()
