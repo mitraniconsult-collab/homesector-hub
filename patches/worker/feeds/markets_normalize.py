@@ -3,6 +3,7 @@ import re
 from html import unescape
 from .config import MARKETS
 from .availability import arrival_timestamp, feed_availability
+from .feed_ids import group_feed_id
 
 def plain_text(html):
     return unescape(re.sub(r"<[^>]+>", " ", html or "")).strip()
@@ -29,8 +30,13 @@ def normalize_market(product, country):
         arrival = (variant.get("expectedArrival") or {}).get("value")
         if not arrival and (product.get("variantsCount") or {}).get("count") == 1:
             arrival = (product.get("expectedArrival") or {}).get("value")
+        options = variant.get("selectedOptions") or []
+        color = next((option.get("value") for option in options
+                      if str(option.get("name", "")).strip().casefold()
+                      in ("color", "colour", "цвят", "цвет")), None)
         output.append({
-            "id": variant.get("id"), "title": (
+            "id": variant.get("id"), "item_group_id": group_feed_id(product.get("id")),
+            "color": color, "title": (
                 (variant.get("displayName") or product.get("title") or "").removesuffix(" - Default Title")
                 if country == "BG" else product.get("title")),
             "description": plain_text(product.get("descriptionHtml")),
