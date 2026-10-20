@@ -1,14 +1,14 @@
 """Stable IDs for feed exports without altering Shopify identifiers.
 
 Shopify GIDs are internal references. FAVI requires IDs consisting of letters,
-and digits only (no punctuation). Prefix numeric variant IDs to avoid collisions
+and digits, hyphens and underscores. Prefix numeric variant IDs to avoid collisions
 with other identifier types. Keep mapping stable across regenerations.
 """
 import re
 
 _VARIANT_GID = re.compile(r"^gid://shopify/ProductVariant/([1-9][0-9]*)$")
 _PRODUCT_GID = re.compile(r"^gid://shopify/Product/([1-9][0-9]*)$")
-_SAFE = re.compile(r"^[a-zA-Z0-9]+$")
+_SAFE = re.compile(r"^[a-zA-Z0-9_-]+$")
 
 def variant_feed_id(value):
     match = _VARIANT_GID.fullmatch(str(value or ""))
