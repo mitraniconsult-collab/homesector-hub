@@ -104,3 +104,11 @@ Updated: 2026-10-20. This file tracks *verified facts* versus untested implement
 - Changed `FEED_CANARY_ONLY=no`, page limit 200, interval 5 seconds; deploy `dep-dbbmlvoae00c739b6lq0` live, running full BG audit on mounted disk. Last captured BG progress **320 products / 236 rows**, no errors. Completion and full XML yet unverified.
 - Hourly condition watcher redirected to new worker service ID, for completion/failure/stall.
 - Still blocked on source/merchant validation and URL delivery for other 12 target feeds. Do not claim they are live or ready for cutover today without actual QA.
+
+## 2026-10-20 — FAVI elevated to first priority
+- User explicitly prioritizes FAVI. Execution order FAVI BG, then RO/HU; investigate if FAVI Greece currently operates before promising GR. FAVI's listed country category trees include BG/RO/HU but not GR (source: https://help.favionline.com/bg/значения-и-изисквания-към-отделните-елементи).
+- Confirmed FAVI Google RSS requirements: detailed country-language product_type/category, unique and **stable historical product IDs** (FAVI warns identifier changes destroy history), unique product URL, full localized product detail, availability_date when backorder/preorder, EUR/RON/HUF context, valid images. Official docs: https://help.favionline.com/bg/значения-и-изисквания-към-отделните-елементи and https://help.favionline.com/bg/панел-за-управление-на-магазина .
+- Fixed prior mistaken FAVI identifier validator accepting punctuation; new candidate IDs are alphanumeric only; optional verified historic-ID mapping takes precedence. **DO NOT cut over before retrieving current FAVI feed and retaining exact existing ID values.**
+- Revised `favi_xml.py` to validate FAVI category verification, market locale and domain, stable safe IDs, availability dates, duplicate URLs; rejects noncompliant rows; added offline regression tests. These commits are feature-only and NOT deployed or independently executed.
+- Separate Google BG durable worker still running (as of 13:43:22 UTC): 12,745 scanned Shopify products, 8,788 candidate entries; no confirmation of completed XML.
+- Next user input required: URL of currently active FAVI BG feed or the FAVI dashboard XML Feed URL. Use this for ID continuity and compare categories before switching.
