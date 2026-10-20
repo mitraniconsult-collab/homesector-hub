@@ -193,6 +193,13 @@ def probe_feed_shopify_staging():
             iterator = read_markets_catalog(store=store, max_pages=1)
             first = next(iterator, None)
             print("[feeds] Shopify diagnostic: CATALOG_OK" if first else "[feeds] Shopify diagnostic: CATALOG_EMPTY", flush=True)
+            if first:
+                from itertools import islice
+                from feeds.preview import preview as _preview
+                sample = _preview(list(islice(read_markets_catalog(), 5)), "BG", "google")
+                print("[feeds] Google BG XML preview: VALID items=" +
+                      str(sample["items_exported"]) +
+                      " scanned=" + str(sample["products_scanned"]), flush=True)
         except Exception as exc:
             import requests
             category = "UNEXPECTED_ERROR"
