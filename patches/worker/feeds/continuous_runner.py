@@ -60,6 +60,14 @@ def run():
             report = refresh(mount)
             print("[feed-availability] " + json.dumps(report, sort_keys=True), flush=True)
         log_snapshot_quality()
+        if os.getenv("FEED_GOOGLE_COMPARISON_PUBLISH") == "yes":
+            from .blob_delivery import publish_comparison
+            try:
+                receipt = publish_comparison(mount)
+                print("[feed-publication] " + json.dumps(receipt, sort_keys=True), flush=True)
+            except Exception as exc:
+                print(f"[feed-publication] FAILED type={type(exc).__name__} cause={str(exc)[:120]}", flush=True)
+                raise
         if os.getenv("FEED_FAVI_BG_PREVIEW") == "yes":
             from .favi_bg_preview import create_preview
             try:
