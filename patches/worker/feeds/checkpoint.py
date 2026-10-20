@@ -32,9 +32,8 @@ class LocalCheckpoint:
         if len(rows) != meta["rows_count"]:
             raise RuntimeError("Checkpoint row count mismatch")
         self.saved_count = len(rows)
-        if not meta.get("has_more", True):
-            raise RuntimeError("Completed journal needs XML finalization")
-        return (meta.get("next_cursor"), rows,
+        cursor = meta.get("next_cursor") if meta.get("has_more", True) else "__FINALIZE__"
+        return (cursor, rows,
                 meta.get("reasons", {}), int(meta["products_scanned"]),
                 int(meta["variants_checked"]))
 
