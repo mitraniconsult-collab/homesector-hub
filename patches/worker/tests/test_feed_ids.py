@@ -3,7 +3,7 @@ from feeds.feed_ids import export_ids, group_feed_id, is_safe_favi_id, variant_f
 
 def test_variant_feed_id_stable_and_platform_safe():
     first = variant_feed_id("gid://shopify/ProductVariant/1122334455")
-    assert first == "shopify-v1122334455"
+    assert first == "shopifyv1122334455"
     assert is_safe_favi_id(first)
     assert variant_feed_id("gid://shopify/ProductVariant/1122334455") == first
 
@@ -17,5 +17,12 @@ def test_invalid_internal_id_does_not_silently_publish():
 
 def test_export_grouping():
     row = export_ids({"id": "gid://shopify/ProductVariant/17"}, "gid://shopify/Product/12")
-    assert row["id"] == "shopify-v17"
-    assert row["item_group_id"] == "shopify-p12"
+    assert row["id"] == "shopifyv17"
+    assert row["item_group_id"] == "shopifyp12"
+
+def test_preserve_approved_historical_favi_id():
+    old = "gid://shopify/ProductVariant/17"
+    row = export_ids({"id": old}, "gid://shopify/Product/12",
+                     historical_favi_ids={old: "EXISTING17"})
+    assert row["id"] == "EXISTING17"
+
