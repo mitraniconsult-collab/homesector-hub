@@ -99,6 +99,8 @@ def create_preview(mount):
         "new_stable_ids": new_ids,
         "skipped_no_checked_mapping": causes["no_checked_category_mapping"],
         "serializer_rejections": xml_report["excluded_reasons"],
+        "category_paths_await_favi_approval": True,
+        "historical_ids_not_verified_in_favi_panel": True,
         "top_mapped_paths": per_path.most_common(15),
         "sha256": hashlib.sha256(xml).hexdigest(),
         "approved_by_favi": False, "published": False,
