@@ -21,7 +21,6 @@ CATEGORY_MAP_BG = {
     "Home & Garden > Kitchen & Dining > Food Storage > Food Storage Containers": "кухня и трапезария > съхранение на храна > контейнери за храна",
     "Home & Garden > Kitchen & Dining > Tableware > Serveware > Serving Trays": "кухня и трапезария > за трапезата > табли за сервиране",
     "Home & Garden > Lighting > Light Ropes & Strings > String Lights": "осветление > декоративно осветление",
-    "Home & Garden > Kitchen & Dining > Tableware > Dinnerware": "кухня и трапезария > за трапезата > съдове за хранене > сервизи за хранене",
     "Home & Garden > Decor > Figurines": "декорация > декорация за дома > статуетки",
     "Home & Garden > Decor > Vases": "декорация > вази",
     "Home & Garden > Decor > Home Fragrances > Candles": "декорация > свещници и свещи > свещи",
