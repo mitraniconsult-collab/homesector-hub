@@ -79,3 +79,12 @@ Updated: 2026-10-20. This file tracks *verified facts* versus untested implement
 - **Archival component staged but not wired**: `feeds/persistent_archive.py` supports HTTPS authenticated upload of finished XML and SHA256. Requires externally provisioned secure storage and credentials. Do not claim it persists any actual artifacts yet.
 - Deploy branch `feature/feeds-other-channels` not connected to staging; no production feed submission. New tests are code only; CI execution still needed.
 - BG audit last observed 9,900 scanned / 8,611 candidates before process shutdown; no complete XML to compare with Feedhub.
+
+## 2026-10-20 14:06+03:00 onward — durable execution preparation
+
+- Checked Render deployments and logs again: newest live commit 95e7dfb; full audit ended without COMPLETE after 9,900 products / 8,611 candidate rows. Production feeds untouched.
+- Supabase account inspection: two unrelated projects (one inactive; one named "toy factory"). **Do not appropriate those stores for Homesector** without explicit ownership and scope approval. No Render Postgres or Key Value instance is available.
+- New `feeds/durable_journal.py`: page-atomic append-only JSONL checkpoint; refuses ephemeral /tmp and requires `FEED_DURABLE_STORAGE_CONFIRMED=yes`. Durable storage must be an ACTUAL mounted persistent volume, not just a directory named durable.
+- New `feeds/batch_job.py`: standalone, bounded 1..1000 Shopify pages per run; no ASGI startup thread; resumes at Shopify page cursor, handles extra variants, validates complete XML count and writes unpublished XML after the final page. Not deployed or executed against the store.
+- New automated offline unit tests and CI workflow `.github/workflows/feed-manager-tests.yml` on branch changes. CI result not yet independently verified. Some related modules still need integration and destination/platform validation.
+- Next gate: confirm exact monthly price and obtain approval for a properly persistent runtime + storage, then provision, set credentials securely, run small-page canary and verify checkpoint resume, follow with full audit. Do not configure existing Supabase projects by guess, switch Feedhub, or deploy to main.
