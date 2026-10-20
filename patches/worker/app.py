@@ -113,6 +113,9 @@ class ImageRunRequest(BaseModel):
 
 @app.on_event("startup")
 def recover_image_jobs():
+    # The feed-only staging service must never run the live image repair queue.
+    if os.environ.get("RENDER_SERVICE_NAME") == "homesector-worker-feed-staging":
+        return
     IMAGE_JOBS.wake()
 
 @app.on_event("shutdown")
