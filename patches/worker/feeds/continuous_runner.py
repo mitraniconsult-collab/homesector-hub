@@ -50,6 +50,22 @@ def run():
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise RuntimeError("Another feed export already owns the persistent journal")
+        if os.getenv("FEED_FAVI_CATEGORY_AUDIT") == "yes":
+            from .favi_category_audit import audit
+            try:
+                report = audit(mount)
+                # Do not print product names or raw feed identifiers into logs.
+                public_report = {k: v for k, v in report.items()
+                                 if k not in ("top_shopify_product_types",
+                                              "candidate_mapping_samples")}
+                print("[favi-category] " + json.dumps(public_report, sort_keys=True), flush=True)
+                print("[favi-category] report saved to durable disk; nothing published", flush=True)
+            except Exception as exc:
+                print(f"[favi-category] FAILED type={type(exc).__name__} cause={str(exc)[:180]}", flush=True)
+                raise
+            while not _stop:
+                time.sleep(5)
+            return
         reference_url = os.getenv("FEED_REFERENCE_AUDIT_URL", "").strip()
         if reference_url:
             from .favi_reference_audit import compare
