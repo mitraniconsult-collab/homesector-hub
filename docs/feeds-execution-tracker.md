@@ -41,3 +41,11 @@ Updated: 2026-10-20. This file tracks *verified facts* versus untested implement
 3. Add true Shopify translated content with explicit locale verification and correct market URLs.
 4. Map Shopify taxonomy/collections to FAVI categories; implement Meta and Biano serializers.
 5. Test each destination and switch only upon user-approved rollout.
+
+
+## Update 2026-10-20 13:04 Europe/Sofia
+- **Monitoring enabled**: hourly Google BG completion/failure condition watch. Weekly Homesector Growth Audit paused with owner permission (not deleted).
+- BG staging worker still deployed at commit bed66f4. Last observed progress log 2026-10-20 09:49:08 UTC: 3,900 products, 3,734 candidate entries; no COMPLETED/FAILED observed. Investigate if progress has stalled; do not mark completed.
+- Channel quality gate and tests committed but **not deployed**; Meta XML draft and tests committed; still needs test execution and Commerce Manager sample validation.
+- Verified Shopify Product.translations(locale:ro/el/hu) return localized title and body_html for one live Quttin product. localization.py applies verified supplied translations; full catalog fetching and verified international URL resolution remain pending.
+- No new feeds published, Feedhub unchanged.
