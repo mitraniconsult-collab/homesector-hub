@@ -81,14 +81,17 @@ def download_reference(url):
     return b"".join(data)
 
 
-def publish_comparison(mount):
+def publish_comparison(mount, source_folder=None):
     if os.getenv("FEED_GOOGLE_COMPARISON_PUBLISH") != "yes":
         return {"status": "disabled"}
     root = Path(mount)
     if os.getenv("FEED_DURABLE_STORAGE_CONFIRMED") != "yes" or not os.path.ismount(root):
         raise RuntimeError("Confirmed mounted feed storage required")
+    folder = (Path(source_folder) if source_folder else root / "google-bg").resolve()
+    if not folder.is_relative_to(root.resolve()):
+        raise ValueError("Catalog folder must be on the confirmed feed mount")
     store = BlobStore(os.getenv("FEED_BLOB_READ_WRITE_TOKEN", ""))
-    source = root / "google-bg/google-bg-corrected-unpublished.xml"
+    source = folder / "google-bg-corrected-unpublished.xml"
     xml = source.read_bytes()
     reference = os.getenv("FEED_REFERENCE_AUDIT_URL", "").strip()
     if not reference:
@@ -101,7 +104,7 @@ def publish_comparison(mount):
         xml, continuity = reconcile_ids(baseline, xml)
         comparison = {**compare_snapshots(baseline, xml), **continuity,
                       "feedhub_sha256": hashlib.sha256(baseline).hexdigest()}
-        (root / "google-bg/feedhub-comparison-baseline.xml").write_bytes(baseline)
+        (folder / "feedhub-comparison-baseline.xml").write_bytes(baseline)
     audit = validate_xml(xml, "BG", max_issues=0)
     if not audit["items"] or audit["unique_ids"] != audit["items"]:
         raise ValueError("Cannot publish empty or duplicate-ID comparison XML")
@@ -139,8 +142,8 @@ def publish_comparison(mount):
     check, _ = store.read(MANIFEST)
     if check != pointer:
         raise RuntimeError("Published feed pointer verification failed")
-    (root / "google-bg/google-bg-public-comparison.xml").write_bytes(xml)
-    (root / "google-bg/feedhub-comparison.json").write_bytes(report_bytes)
+    (folder / "google-bg-public-comparison.xml").write_bytes(xml)
+    (folder / "feedhub-comparison.json").write_bytes(report_bytes)
     receipt = {"status": "comparison_snapshot_uploaded", "items": audit["items"],
                "sha256": digest, "xml_url": manifest["xml_url"],
                "comparison_url": manifest["comparison_url"],
@@ -149,5 +152,5 @@ def publish_comparison(mount):
                            ("feedhub_items", "matched_variants", "only_feedhub", "only_homesector",
                             "field_differences", "historical_ids_preserved")},
                "content_issues": audit["issues"], "destination_subscriptions_changed": False}
-    (root / "google-bg/publication-receipt.json").write_text(json.dumps(receipt, indent=2))
+    (folder / "publication-receipt.json").write_text(json.dumps(receipt, indent=2))
     return receipt

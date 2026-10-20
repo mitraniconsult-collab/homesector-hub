@@ -92,11 +92,13 @@ def apply_current_offer(row, node):
             "title": title.removesuffix(" - Default Title").strip()}
 
 
-def refresh(mount):
+def refresh(mount, source_folder=None):
     root = Path(mount)
     if os.getenv("FEED_DURABLE_STORAGE_CONFIRMED") != "yes" or not os.path.ismount(root):
         raise RuntimeError("Confirmed mounted storage required")
-    folder = root / "google-bg"
+    folder = (Path(source_folder) if source_folder else root / "google-bg").resolve()
+    if not folder.is_relative_to(root.resolve()):
+        raise ValueError("Catalog folder must be on the confirmed feed mount")
     manifest = json.loads((folder / "manifest.json").read_text())
     if not manifest.get("finished"):
         return {"status": "awaiting_complete_catalog", "published": False}

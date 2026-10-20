@@ -35,3 +35,18 @@ def test_page_limit_rejected():
         except ValueError:
             continue
         raise AssertionError("Unbounded jobs must be rejected")
+
+
+def test_http_200_throttle_retries_without_advancing_cursor(monkeypatch):
+    answers = iter([{"errors": [{"extensions": {"code": "THROTTLED"}}],
+                     "extensions": {"cost": {"requestedQueryCost": 100,
+                       "throttleStatus": {"currentlyAvailable": 0, "restoreRate": 50}}}},
+                    {"data": {"ok": True}}])
+    calls, delays = [], []
+    def post(*args):
+        calls.append(args[-1]["variables"])
+        return next(answers)
+    monkeypatch.setattr(batch_job, "shopify_post", post)
+    monkeypatch.setattr(batch_job.time, "sleep", delays.append)
+    assert batch_job.post_graphql("url", "t", "q", {"cursor": "c1"}) == {"ok": True}
+    assert calls == [{"cursor": "c1"}, {"cursor": "c1"}] and delays == [2.25]

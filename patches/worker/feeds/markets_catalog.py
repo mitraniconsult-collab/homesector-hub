@@ -33,17 +33,17 @@ def shopify_post(url, token, payload):
             time.sleep(min(30, 2 ** attempt))
     raise RuntimeError("Shopify retry limit reached")
 
-def catalog_query():
+def catalog_query(bg_only=False):
     publication = "\n".join(
         f"published_{country}: publishedInContext(context: {{country: {country}}})"
-        for country in COUNTRIES
+        for country in (("BG",) if bg_only else COUNTRIES)
     )
     pricing = "\n".join(
         f"price_{country}: contextualPricing(context: {{country: {country}}}) "
         "{ price { amount currencyCode } }"
-        for country in COUNTRIES
+        for country in (("BG",) if bg_only else COUNTRIES)
     )
-    return """
+    query = """
     query FeedMarkets($cursor: String) {
       products(first: 5, after: $cursor, sortKey: ID) {
         pageInfo { hasNextPage endCursor }
@@ -66,6 +66,11 @@ def catalog_query():
       }
     }
     """
+
+    if bg_only:
+        query = query.replace("products(first: 5,", 'products(first: 25, query: "status:active",')
+        query = query.replace("variants(first: 25)", "variants(first: 5)")
+    return query
 
 def read_markets_catalog(store=None, token=None, version="2026-07", max_pages=10000):
     store = (store or os.environ.get("SHOPIFY_STORE", "")).strip()
@@ -109,7 +114,7 @@ def read_remaining_variants(url, token, product_id, cursor):
         raise RuntimeError("Missing variant cursor")
     pricing = "\n".join(
         f"price_{country}: contextualPricing(context: {{country: {country}}}) "
-        "{ price { amount currencyCode } }" for country in COUNTRIES
+        "{ price { amount currencyCode } }" for country in (("BG",) if bg_only else COUNTRIES)
     )
     query = """
     query FeedVariants($productId: ID!, $cursor: String) {

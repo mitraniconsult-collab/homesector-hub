@@ -6,6 +6,7 @@ advancing its cursor. No feed is published externally.
 """
 import json
 import os
+import time
 from pathlib import Path
 from xml.etree import ElementTree as ET
 from .config import eligible
@@ -16,12 +17,21 @@ from .shopify_auth import get_admin_token
 from .xml_export import generate
 
 def post_graphql(url, token, query, variables):
-    payload = shopify_post(url, token, {"query": query, "variables": variables})
-    if payload.get("errors") or not payload.get("data"):
-        raise RuntimeError("Shopify GraphQL query rejected")
-    return payload["data"]
+    for attempt in range(6):
+        payload = shopify_post(url, token, {"query": query, "variables": variables})
+        errors = payload.get("errors") or []
+        if errors and all((e.get("extensions") or {}).get("code") == "THROTTLED" for e in errors) and attempt < 5:
+            cost = (payload.get("extensions") or {}).get("cost") or {}
+            throttle = cost.get("throttleStatus") or {}
+            delay = (cost.get("requestedQueryCost", 500) - throttle.get("currentlyAvailable", 0)) / max(1, throttle.get("restoreRate", 50))
+            time.sleep(min(60, max(1, delay + .25)))
+            continue
+        if errors or not payload.get("data"):
+            raise RuntimeError("Shopify GraphQL query rejected")
+        return payload["data"]
 
-def execute(batch_limit=100, root=None, store=None, token=None):
+
+def execute(batch_limit=100, root=None, store=None, token=None, bg_only=False, should_stop=lambda: False):
     if not isinstance(batch_limit, int) or not 1 <= batch_limit <= 1000:
         raise ValueError("batch_limit must be 1..1000")
     root = root or os.environ.get("FEED_DURABLE_PATH")
@@ -43,10 +53,12 @@ def execute(batch_limit=100, root=None, store=None, token=None):
     cursor = old["cursor"]
     seen_cursors = set()
     for _ in range(batch_limit):
+        if should_stop():
+            break
         if cursor is not None and cursor in seen_cursors:
             raise RuntimeError("Repeated Shopify pagination cursor")
         seen_cursors.add(cursor)
-        data = post_graphql(url, token, catalog_query(), {"cursor": cursor})
+        data = post_graphql(url, token, catalog_query(bg_only=bg_only), {"cursor": cursor})
         page = data["products"]
         page_rows = []
         for product in page["nodes"]:

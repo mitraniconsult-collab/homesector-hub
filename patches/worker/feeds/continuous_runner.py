@@ -51,6 +51,13 @@ def run():
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise RuntimeError("Another feed export already owns the persistent journal")
+        if os.getenv("FEED_GOOGLE_SCHEDULED_ENABLED") == "yes":
+            if os.getenv("FEED_GOOGLE_COMPARISON_PUBLISH") != "yes":
+                raise RuntimeError("Scheduled publication requires comparison publication enabled")
+            from .scheduled_google import run as run_scheduled
+            run_scheduled(mount, should_stop=lambda: _stop)
+            return
+
         def log_snapshot_quality():
             report = audit_snapshots(mount)
             print("[feeds-quality] " + json.dumps(report, sort_keys=True), flush=True)
