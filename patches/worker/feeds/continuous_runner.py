@@ -20,13 +20,22 @@ def request_stop(_signum, _frame):
     _stop = True
 
 def run():
+    signal.signal(signal.SIGTERM, request_stop)
+    signal.signal(signal.SIGINT, request_stop)
+    # Disabled staging mode runs without Shopify credentials or feed writes.
+    if os.getenv("FEED_BG_JOB_ENABLED") != "yes":
+        mount = os.getenv("FEED_DURABLE_PATH", "").strip()
+        disk_exists = bool(mount and Path(mount).is_dir())
+        disk_is_mount = bool(disk_exists and os.path.ismount(mount))
+        print(f"[feeds-job] SAFE_IDLE export_disabled=true disk_path_present={disk_exists} disk_is_mount={disk_is_mount}", flush=True)
+        while not _stop:
+            time.sleep(5)
+        return
     if os.getenv("FEED_DURABLE_STORAGE_CONFIRMED") != "yes":
         raise RuntimeError("Durable volume is not confirmed")
     mount = os.getenv("FEED_DURABLE_PATH", "").strip()
-    if not mount or not Path(mount).is_dir():
-        raise RuntimeError("Persistent feed mount is missing")
-    if os.getenv("FEED_BG_JOB_ENABLED") != "yes":
-        raise RuntimeError("Worker has not been explicitly enabled")
+    if not mount or not Path(mount).is_dir() or not os.path.ismount(mount):
+        raise RuntimeError("Persistent feed mount is missing or not mounted")
     page_limit = int(os.getenv("FEED_JOB_PAGE_LIMIT", "25"))
     if page_limit < 1 or page_limit > 1000:
         raise ValueError("Invalid page limit")
