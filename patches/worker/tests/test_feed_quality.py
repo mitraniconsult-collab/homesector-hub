@@ -43,3 +43,9 @@ def test_unsupported_biano_market():
     except ValueError:
         return
     raise AssertionError("Biano RO must not be enabled")
+
+def test_favi_requires_platform_validated_category_even_for_bg():
+    row = {**BASE, "product_type": "Мебели"}
+    assert "unverified_favi_category" in check_product(row, "BG", "favi")
+    row["category_verified_for_market"] = True
+    assert "unverified_favi_category" not in check_product(row, "BG", "favi")
