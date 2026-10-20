@@ -95,3 +95,12 @@ Updated: 2026-10-20. This file tracks *verified facts* versus untested implement
 - Fixed missing `shopify_post` function on this branch, unifying bounded retry support for translations, product catalog, variant pagination and batch job.
 - Wrote `docs/feed-worker-staging-deployment.md` describing exact build/start command, disk mount, QA canary and deployment safety.
 - Tests/CI have been committed, but passing GitHub Actions results **have not been verified**. Real durable volume recovery test and fully compliant Google export remain pending.
+
+## 2026-10-20 16:23+03:00 — REAL SHOPIFY CANARY PASSED, FULL BG RUNNING
+- New paid Render Background Worker `srv-dbbm4fom7kps73fecs40`, persistent disk `dsk-dbbm5jrbc2fs73bld6l0` mounted at `/var/data/feeds`, Frankfurt, baseline ~$7.25/mo; old production worker and Feedhub unchanged.
+- Verified `SAFE_IDLE disk_is_mount=True` and actual read-only Shopify OAuth with copied credentials.
+- First 5-page canary processed 25 products, 24 eligible rows, status incomplete, no external publication.
+- Redeployed and proved durable checkpoint restored: second 5-page canary resumed products **25→50** and rows **24→48**, rather than beginning again; unpublished.
+- Changed `FEED_CANARY_ONLY=no`, page limit 200, interval 5 seconds; deploy `dep-dbbmlvoae00c739b6lq0` live, running full BG audit on mounted disk. Last captured BG progress **320 products / 236 rows**, no errors. Completion and full XML yet unverified.
+- Hourly condition watcher redirected to new worker service ID, for completion/failure/stall.
+- Still blocked on source/merchant validation and URL delivery for other 12 target feeds. Do not claim they are live or ready for cutover today without actual QA.
