@@ -93,6 +93,9 @@ def create_preview(mount):
             else:
                 row["id"] = variant_feed_id(row["id"])
                 new_ids += 1
+            if not row.get("item_group_id"):
+                causes["missing_shopify_parent_group"] += 1
+                continue
             row["product_type"] = favi_category
             row["category_verified_for_market"] = True
             prepared.append(row)
@@ -116,6 +119,7 @@ def create_preview(mount):
         "new_stable_ids": new_ids,
         "skipped_no_checked_mapping": causes["no_checked_category_mapping"],
         "blocked_legacy_id_migration": causes["legacy_id_requires_migration_review"],
+        "blocked_missing_parent_group": causes["missing_shopify_parent_group"],
         "serializer_rejections": xml_report["excluded_reasons"],
         "category_paths_await_favi_approval": True,
         "historical_ids_not_verified_in_favi_panel": True,
