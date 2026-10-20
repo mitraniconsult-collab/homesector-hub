@@ -1,5 +1,6 @@
 """Read-only, authenticated first-page feed validation. Not a public feed."""
 import os
+from itertools import islice
 from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import Response
 from .markets_catalog import read_markets_catalog
@@ -17,7 +18,7 @@ def authorize(value):
 def build_sample():
     try:
         # A single five-product page; never treat as a complete feed.
-        catalog = list(read_markets_catalog(max_pages=1))
+        catalog = list(islice(read_markets_catalog(), 5))
         result = preview(catalog, "BG", "google")
     except Exception:
         raise HTTPException(502, "Shopify feed preview unavailable")
