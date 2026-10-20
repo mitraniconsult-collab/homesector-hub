@@ -9,6 +9,6 @@ test -f worker/app.py
 test -d patches/worker
 cp -r patches/worker/. worker/
 python -m compileall -q worker
-python -c "import sys;sys.path.insert(0,'worker');from feeds.api import router;assert router.prefix == '/feeds'"
 python -m pip install --upgrade pip
 python -m pip install -r worker/requirements.txt
+python -c "import sys;sys.path.insert(0,'worker');from feeds.api import router;assert router.prefix == '/feeds'"
