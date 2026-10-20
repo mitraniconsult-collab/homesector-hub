@@ -16,6 +16,12 @@ from .feed_ids import is_safe_favi_id, variant_feed_id
 # Exact source taxonomy -> attested FAVI BG public category list paths.
 # Never infer from product title, broad parent categories or collections.
 CATEGORY_MAP_BG = {
+    "Home & Garden > Kitchen & Dining > Tableware > Dinnerware > Plates": "кухня и трапезария > за трапезата > съдове за хранене > чинии",
+    "Home & Garden > Kitchen & Dining > Tableware > Dinnerware > Bowls": "кухня и трапезария > за трапезата > съдове за хранене > купи",
+    "Home & Garden > Kitchen & Dining > Food Storage > Food Storage Containers": "кухня и трапезария > съхранение на храна > контейнери за храна",
+    "Home & Garden > Kitchen & Dining > Tableware > Serveware > Serving Trays": "кухня и трапезария > за трапезата > табли за сервиране",
+    "Home & Garden > Lighting > Light Ropes & Strings > String Lights": "осветление > декоративно осветление",
+    "Home & Garden > Kitchen & Dining > Tableware > Dinnerware": "кухня и трапезария > за трапезата > съдове за хранене > сервизи за хранене",
     "Home & Garden > Decor > Figurines": "декорация > декорация за дома > статуетки",
     "Home & Garden > Decor > Vases": "декорация > вази",
     "Home & Garden > Decor > Home Fragrances > Candles": "декорация > свещници и свещи > свещи",
