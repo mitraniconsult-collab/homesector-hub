@@ -50,6 +50,19 @@ def run():
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise RuntimeError("Another feed export already owns the persistent journal")
+        reference_url = os.getenv("FEED_REFERENCE_AUDIT_URL", "").strip()
+        if reference_url:
+            from .favi_reference_audit import compare
+            try:
+                report = compare(reference_url, mount)
+                print("[favi-reference] " + json.dumps(report, sort_keys=True), flush=True)
+            except Exception as exc:
+                print(f"[favi-reference] FAILED type={type(exc).__name__}", flush=True)
+                raise
+            print("[favi-reference] private report saved; no feeds published", flush=True)
+            while not _stop:
+                time.sleep(5)
+            return
         print("[feeds-job] worker STARTED unpublished read-only BG export", flush=True)
         while not _stop:
             try:
