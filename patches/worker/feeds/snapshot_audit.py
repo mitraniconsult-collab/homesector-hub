@@ -8,7 +8,7 @@ import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from .xml_audit import validate_xml
+from .xml_audit import validate_xml, validated_preview
 
 REPORT_NAME = "feed-snapshot-diagnostics.json"
 SNAPSHOTS = {
@@ -55,6 +55,17 @@ def audit_snapshots(mount):
                 result.update(status="unpublished_snapshot", items=audit["items"],
                               unique_ids=audit["unique_ids"], issues=audit["issues"],
                               quality_passed=audit["passed"])
+                if channel == "google":
+                    candidate, candidate_report = validated_preview(xml, "BG")
+                    candidate_path = path.with_name("google-bg-validated-preview.xml")
+                    candidate_temp = candidate_path.with_suffix(".tmp")
+                    with candidate_temp.open("wb") as file:
+                        file.write(candidate)
+                        file.flush()
+                        os.fsync(file.fileno())
+                    os.replace(candidate_temp, candidate_path)
+                    candidate_report["sha256"] = hashlib.sha256(candidate).hexdigest()
+                    result["validated_preview"] = candidate_report
             except (ValueError, SyntaxError):
                 result.update(status="invalid_xml", quality_passed=False)
         feeds.append(result)

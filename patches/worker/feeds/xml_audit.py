@@ -3,6 +3,7 @@
 Works on generated RSS 2.0 with Google namespace. Does not send any data.
 """
 from collections import Counter
+from copy import deepcopy
 from decimal import Decimal, InvalidOperation
 from datetime import datetime
 from urllib.parse import urlsplit
@@ -15,7 +16,7 @@ REQUIRED = ("id", "title", "description", "link", "image_link", "price", "availa
 def validate_xml(content, market="BG", max_issues=25):
     if market not in MARKETS:
         raise ValueError("Unsupported market")
-    root = ET.fromstring(content)
+    root = content if isinstance(content, ET.Element) else ET.fromstring(content)
     if root.tag != "rss":
         raise ValueError("Not an RSS feed")
     channel = root.find("channel")
@@ -69,3 +70,37 @@ def validate_xml(content, market="BG", max_issues=25):
         "issues": dict(sorted(counts.items())), "examples": examples,
         "passed": bool(items) and not counts, "submitted": False
     }
+
+
+def validated_preview(content, market="BG"):
+    """Separate private candidate; preserve every retained ID and source XML.
+
+    Invalid rows are counted explicitly. This does not mark the destination as
+    having accepted a feed, and it must never silently replace the full export.
+    """
+    source = ET.fromstring(content)
+    # Validate structure before constructing an output (including empty feeds).
+    validate_xml(source, market)
+    output = deepcopy(source)
+    channel = output.find("channel")
+    seen, reasons, excluded = set(), Counter(), 0
+    for item in list(channel.findall("item")):
+        single = ET.Element("rss", version="2.0")
+        ET.SubElement(single, "channel").append(item)
+        audit = validate_xml(single, market, max_issues=0)
+        issues = set(audit["issues"])
+        item_id = (item.findtext(G + "id") or "").strip()
+        if item_id in seen:
+            issues.add("duplicate_or_blank_id")
+        if issues:
+            channel.remove(item)
+            reasons.update(issues)
+            excluded += 1
+        else:
+            seen.add(item_id)
+    xml = ET.tostring(output, encoding="utf-8", xml_declaration=True)
+    final = validate_xml(xml, market, max_issues=0)
+    return xml, {"items": final["items"], "excluded_rows": excluded,
+                 "issues": dict(sorted(reasons.items())),
+                 "quality_passed": final["passed"], "published": False,
+                 "destination_accepted": False}

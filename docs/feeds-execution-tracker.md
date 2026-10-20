@@ -138,3 +138,8 @@ Updated: 2026-10-20. This file tracks *verified facts* versus untested implement
 - Added durable feed-snapshot-diagnostics.json: per-snapshot checksum, timestamp, item count and XML quality issues for Google BG and FAVI BG. Original XML remains unchanged; local preflight is explicitly NOT destination acceptance or release readiness.
 - Added authenticated /feeds/diagnostics; returns 503 if this service cannot access the actual mounted report. The background worker disk is NOT shared with the separate free API; an authenticated shared artifact store remains necessary for remote XML/report delivery.
 - Deployment results and real catalog issue counts are recorded below only after verification.
+
+- Verified deployment of commit 31bde6de475770387a06cf3bbbe56a0e5fa267cf: durable worker dep-dbbrg5rncjis73b149rg LIVE; API dep-dbbrgd3rjlhs73a8tp70 LIVE. Both branches share the same implementation.
+- Actual durable Google BG snapshot preflight: **11,461 items; 7,913 missing/invalid backorder availability dates; 44 missing descriptions; 11,461 unique IDs**. Issue counts can overlap. SHA256 remains 32eb87131674f405bb85f82bcc42d6f823c019f493e590526f870160ac1dc935; original source unchanged.
+- FAVI BG private snapshot has 85 items and passes common RSS checks, but FAVI category approval, historical ID review and external acceptance remain outstanding.
+- Added a separate Google BG validated-preview XML builder: excludes failing entries with explicit reason counts, retains original IDs, validates the resulting XML again, and keeps original full export unchanged. This is a private candidate only, never an automatic replacement of a registered feed.
