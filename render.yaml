@@ -1,0 +1,35 @@
+# Staging ONLY. Apply this Blueprint from feature/feeds-other-channels.
+# Provisions one separate paid Background Worker and one 1 GB persistent disk.
+# No production services, databases, storefronts or Feedhub are referenced.
+services:
+  - type: worker
+    name: homesector-feed-worker-staging
+    runtime: python
+    repo: https://github.com/mitraniconsult-collab/homesector-hub
+    branch: feature/feeds-other-channels
+    region: frankfurt
+    plan: 0.5c-512mb
+    autoDeployTrigger: off
+    buildCommand: bash scripts/render-worker-build.sh
+    startCommand: cd worker && python -m feeds.continuous_runner
+    disk:
+      name: homesector-feed-checkpoints
+      mountPath: /var/data/feeds
+      sizeGB: 1
+    envVars:
+      - key: SHOPIFY_STORE
+        sync: false
+      - key: SHOPIFY_CLIENT_ID
+        sync: false
+      - key: SHOPIFY_CLIENT_SECRET
+        sync: false
+      - key: FEED_DURABLE_PATH
+        value: /var/data/feeds
+      - key: FEED_DURABLE_STORAGE_CONFIRMED
+        value: "yes"
+      - key: FEED_BG_JOB_ENABLED
+        value: "yes"
+      - key: FEED_JOB_PAGE_LIMIT
+        value: "5"
+      - key: FEED_RUN_INTERVAL_SECONDS
+        value: "30"
