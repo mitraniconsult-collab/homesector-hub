@@ -50,3 +50,19 @@ def test_http_200_throttle_retries_without_advancing_cursor(monkeypatch):
     monkeypatch.setattr(batch_job.time, "sleep", delays.append)
     assert batch_job.post_graphql("url", "t", "q", {"cursor": "c1"}) == {"ok": True}
     assert calls == [{"cursor": "c1"}, {"cursor": "c1"}] and delays == [2.25]
+
+
+def test_bg_catalog_paginates_extra_variants_with_bg_pricing(monkeypatch):
+    from feeds import markets_catalog
+    queries = []
+    def post(url, token, payload):
+        queries.append(payload["query"])
+        return {"data": {"product": {"variants": {
+            "nodes": [{"id": "v6"}],
+            "pageInfo": {"hasNextPage": False, "endCursor": "end"}}}}}
+    monkeypatch.setattr(markets_catalog, "shopify_post", post)
+    result = markets_catalog.read_remaining_variants("url", "token", "p1", "c5", bg_only=True)
+    assert result == [{"id": "v6"}]
+    assert "price_BG" in queries[0] and "price_RO" not in queries[0]
+    markets_catalog.read_remaining_variants("url", "token", "p1", "c5")
+    assert "price_RO" in queries[-1]

@@ -65,7 +65,7 @@ def execute(batch_limit=100, root=None, store=None, token=None, bg_only=False, s
             if (product.get("variants") or {}).get("pageInfo", {}).get("hasNextPage"):
                 variants = product["variants"]
                 variants["nodes"].extend(read_remaining_variants(
-                    url, token, product["id"], variants["pageInfo"]["endCursor"]))
+                    url, token, product["id"], variants["pageInfo"]["endCursor"], bg_only=bg_only))
             for row in normalize_market(product, "BG"):
                 if eligible(row, "BG"):
                     page_rows.append(row)

@@ -108,7 +108,7 @@ def read_markets_catalog(store=None, token=None, version="2026-07", max_pages=10
             raise RuntimeError("Missing pagination cursor")
     raise RuntimeError("Shopify catalog pagination limit reached")
 
-def read_remaining_variants(url, token, product_id, cursor):
+def read_remaining_variants(url, token, product_id, cursor, bg_only=False):
     """Page through every variant; fail rather than silently drop any."""
     if not cursor:
         raise RuntimeError("Missing variant cursor")
