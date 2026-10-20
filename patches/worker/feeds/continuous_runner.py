@@ -59,6 +59,11 @@ def run():
                 print(f"[feeds-job] FAILED type={type(exc).__name__}", flush=True)
                 raise
             print("[feeds-job] " + json.dumps(result, sort_keys=True), flush=True)
+            if os.getenv("FEED_CANARY_ONLY") == "yes":
+                print("[feeds-job] CANARY_COMPLETE export_unpublished=true; waiting for manual approval", flush=True)
+                while not _stop:
+                    time.sleep(5)
+                break
             if result["status"] == "completed":
                 print("[feeds-job] AUDIT COMPLETE; parked until explicitly configured to regenerate", flush=True)
                 while not _stop:
