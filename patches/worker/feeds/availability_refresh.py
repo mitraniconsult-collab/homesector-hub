@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from .availability import arrival_timestamp, feed_availability
 from .markets_catalog import shopify_post
+from .markets_normalize import plain_text
 from .shopify_auth import get_admin_token
 from .xml_export import generate
 
@@ -22,6 +23,8 @@ QUERY = '''query FeedAvailability($ids: [ID!]!) {
       price_BG: contextualPricing(context: {country: BG}) { price { amount currencyCode } }
       expectedArrival: metafield(namespace: "custom", key: "expected_arrival") { value }
       product {
+        status descriptionHtml
+        published_BG: publishedInContext(context: {country: BG})
         variantsCount { count }
         expectedArrival: metafield(namespace: "custom", key: "expected_arrival") { value }
       }
@@ -65,6 +68,12 @@ def apply_source(row, node):
         raise RuntimeError("Incomplete Shopify inventory source")
     arrival = (node.get("expectedArrival") or {}).get("value")
     product = node.get("product") or {}
+    if "status" in product:
+        row["active"] = product["status"] == "ACTIVE"
+    if "published_BG" in product:
+        row["published"] = product["published_BG"] is True
+    if "descriptionHtml" in product:
+        row["description"] = plain_text(product["descriptionHtml"])
     # Never copy one product-level colour's date onto other variants.
     if not arrival and (product.get("variantsCount") or {}).get("count") == 1:
         arrival = (product.get("expectedArrival") or {}).get("value")

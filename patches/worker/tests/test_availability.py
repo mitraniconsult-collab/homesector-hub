@@ -109,3 +109,13 @@ def test_bg_catalog_preserves_variant_name():
     variant = product["variants"]["nodes"][0]
     variant.update(displayName="Тиган - Червен", price_BG={"price": {"amount": "10", "currencyCode": "EUR"}})
     assert normalize_market(product, "BG")[0]["title"] == "Тиган - Червен"
+
+
+def test_last_read_updates_description_and_drops_unpublished_product():
+    source = {"inventoryQuantity": 0, "inventoryPolicy": "CONTINUE",
+              "product": {"status": "ACTIVE", "published_BG": False,
+                          "descriptionHtml": "<p>Актуално описание</p>"}}
+    row = apply_source(good_row(), source)
+    assert row["description"] == "Актуално описание"
+    assert row["continue_selling"] and row["availability"] == "in_stock"
+    assert not ET.fromstring(generate([row], "BG", "google")).findall("./channel/item")
