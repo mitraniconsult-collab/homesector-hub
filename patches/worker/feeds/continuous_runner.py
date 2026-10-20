@@ -50,6 +50,21 @@ def run():
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise RuntimeError("Another feed export already owns the persistent journal")
+        if os.getenv("FEED_FAVI_SHOPIFY_CATEGORY_SCAN") == "yes":
+            from .favi_shopify_category_scan import scan
+            while not _stop:
+                try:
+                    report = scan(mount, page_limit=100)
+                    print("[favi-shopify] " + json.dumps(report, ensure_ascii=False, sort_keys=True), flush=True)
+                except Exception as exc:
+                    print(f"[favi-shopify] FAILED type={type(exc).__name__} cause={str(exc)[:120]}", flush=True)
+                    raise
+                if report["status"] == "complete":
+                    while not _stop:
+                        time.sleep(10)
+                    return
+                time.sleep(5)
+            return
         if os.getenv("FEED_FAVI_CATEGORY_AUDIT") == "yes":
             from .favi_category_audit import audit
             try:
