@@ -30,7 +30,9 @@ def normalize_market(product, country):
         if not arrival and (product.get("variantsCount") or {}).get("count") == 1:
             arrival = (product.get("expectedArrival") or {}).get("value")
         output.append({
-            "id": variant.get("id"), "title": product.get("title"),
+            "id": variant.get("id"), "title": (
+                (variant.get("displayName") or product.get("title") or "").removesuffix(" - Default Title")
+                if country == "BG" else product.get("title")),
             "description": plain_text(product.get("descriptionHtml")),
             "link": "https://" + MARKETS[country]["domain"] + "/products/" + handle
                     + "?variant=" + str(variant.get("id", "").rsplit("/", 1)[-1]),

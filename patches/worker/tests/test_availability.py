@@ -84,3 +84,28 @@ def test_http_200_graphql_throttle_resumes_same_batch(monkeypatch):
     monkeypatch.setattr(availability_refresh.time, "sleep", delays.append)
     assert availability_refresh.read_nodes("endpoint", "token", ["v1"]) == [{"id": "v1"}]
     assert calls == [["v1"], ["v1"]] and delays == [2.25]
+
+
+def test_refresh_replaces_stale_price_and_retains_variant_name():
+    row = availability_refresh.apply_current_offer(
+        {**good_row(), "price": "739", "title": "Table"},
+        {"displayName": "Table - Copper", "price_BG": {
+            "price": {"amount": "690.0", "currencyCode": "EUR"}}})
+    assert row["price"] == "690.0" and row["title"] == "Table - Copper"
+    assert b"Table - Copper" in generate([row], "BG", "google")
+
+
+@pytest.mark.parametrize("amount,currency", [("NaN", "EUR"), ("0", "EUR"), ("10", "BGN"), (None, "EUR")])
+def test_refresh_rejects_invalid_current_price(amount, currency):
+    with pytest.raises(RuntimeError):
+        availability_refresh.apply_current_offer(good_row(), {
+            "displayName": "Table", "price_BG": {"price": {
+                "amount": amount, "currencyCode": currency}}})
+
+
+def test_bg_catalog_preserves_variant_name():
+    product = sample_product()
+    product["published_BG"] = True
+    variant = product["variants"]["nodes"][0]
+    variant.update(displayName="Тиган - Червен", price_BG={"price": {"amount": "10", "currencyCode": "EUR"}})
+    assert normalize_market(product, "BG")[0]["title"] == "Тиган - Червен"

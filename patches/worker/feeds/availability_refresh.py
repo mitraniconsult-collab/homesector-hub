@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import time
+from decimal import Decimal, InvalidOperation
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,7 +18,8 @@ from .xml_export import generate
 QUERY = '''query FeedAvailability($ids: [ID!]!) {
   nodes(ids: $ids) {
     ... on ProductVariant {
-      id inventoryQuantity inventoryPolicy
+      id displayName inventoryQuantity inventoryPolicy
+      price_BG: contextualPricing(context: {country: BG}) { price { amount currencyCode } }
       expectedArrival: metafield(namespace: "custom", key: "expected_arrival") { value }
       product {
         variantsCount { count }
@@ -73,6 +75,23 @@ def apply_source(row, node):
     return row
 
 
+def apply_current_offer(row, node):
+    """Refresh the BG offer together with inventory; reject incomplete pricing."""
+    if node is None:
+        return row
+    money = (node.get("price_BG") or {}).get("price") or {}
+    title = node.get("displayName")
+    try:
+        amount = Decimal(str(money.get("amount", "")))
+    except InvalidOperation:
+        raise RuntimeError("Incomplete Shopify BG price") from None
+    if (not amount.is_finite() or amount <= 0 or money.get("currencyCode") != "EUR"
+            or not isinstance(title, str) or not title.strip()):
+        raise RuntimeError("Invalid Shopify BG offer")
+    return {**row, "price": str(money["amount"]), "currency": "EUR",
+            "title": title.removesuffix(" - Default Title").strip()}
+
+
 def refresh(mount):
     root = Path(mount)
     if os.getenv("FEED_DURABLE_STORAGE_CONFIRMED") != "yes" or not os.path.ismount(root):
@@ -100,7 +119,7 @@ def refresh(mount):
         for row, node in zip(batch, nodes):
             if node is not None and node.get("id") != row["id"]:
                 raise RuntimeError("Mismatched Shopify variant response")
-            updated = apply_source(row, node)
+            updated = apply_current_offer(apply_source(row, node), node)
             output.append(updated)
             counts[updated["availability"]] += 1
             if not updated["available"] and updated["continue_selling"]:
