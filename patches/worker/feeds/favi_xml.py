@@ -62,7 +62,7 @@ def generate_favi(rows, market="BG"):
             _g(item, field, row.get(field))
         _g(item, "price", f"{row['price']} {row['currency']}")
         _g(item, "availability", "in_stock" if row.get("available") else "backorder")
-        if not row.get("available"):
+        if not row.get("available") and row.get("availability_date"):
             _g(item, "availability_date", row["availability_date"])
         _g(item, "condition", "new")
         count += 1
