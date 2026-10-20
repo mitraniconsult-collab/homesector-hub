@@ -2,6 +2,7 @@ from xml.etree import ElementTree as ET
 import pytest
 from feeds.availability import feed_availability
 from feeds.availability_refresh import apply_source
+from feeds import availability_refresh
 from feeds.xml_export import generate, GOOGLE_NS
 from feeds.favi_xml import generate_favi
 from feeds.markets_normalize import normalize_market
@@ -67,3 +68,19 @@ def test_normalizer_reads_arrival_and_retains_physical_stock():
     assert row["availability"] == "in_stock" and not row["available"]
     variant["expectedArrival"] = {"value": "2026-12-16"}
     assert normalize_market(product, "RO")[0]["availability"] == "backorder"
+
+
+def test_http_200_graphql_throttle_resumes_same_batch(monkeypatch):
+    responses = iter([
+        {"errors": [{"extensions": {"code": "THROTTLED"}}],
+         "extensions": {"cost": {"requestedQueryCost": 100,
+                                  "throttleStatus": {"currentlyAvailable": 0, "restoreRate": 50}}}},
+        {"data": {"nodes": [{"id": "v1"}]}}])
+    calls, delays = [], []
+    def post(endpoint, token, payload):
+        calls.append(payload["variables"]["ids"])
+        return next(responses)
+    monkeypatch.setattr(availability_refresh, "shopify_post", post)
+    monkeypatch.setattr(availability_refresh.time, "sleep", delays.append)
+    assert availability_refresh.read_nodes("endpoint", "token", ["v1"]) == [{"id": "v1"}]
+    assert calls == [["v1"], ["v1"]] and delays == [2.25]

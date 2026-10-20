@@ -5,6 +5,7 @@ Only Shopify queries are used. The original catalog journal/XML is retained.
 import hashlib
 import json
 import os
+import time
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -25,6 +26,29 @@ QUERY = '''query FeedAvailability($ids: [ID!]!) {
     }
   }
 }'''
+
+
+def read_nodes(endpoint, token, ids):
+    # GraphQL throttling can be returned with HTTP 200, so the common HTTP
+    # retry helper alone is insufficient for this batched read.
+    for attempt in range(6):
+        response = shopify_post(endpoint, token, {"query": QUERY, "variables": {"ids": ids}})
+        errors = response.get("errors") or []
+        if errors and all((error.get("extensions") or {}).get("code") == "THROTTLED"
+                          for error in errors) and attempt < 5:
+            cost = (response.get("extensions") or {}).get("cost") or {}
+            throttle = cost.get("throttleStatus") or {}
+            needed = cost.get("requestedQueryCost", 500)
+            available = throttle.get("currentlyAvailable", 0)
+            rate = throttle.get("restoreRate", 50)
+            delay = max(1, (needed - available) / max(1, rate) + 0.25)
+            time.sleep(min(60, delay))
+            continue
+        nodes = (response.get("data") or {}).get("nodes")
+        if errors or not isinstance(nodes, list) or len(nodes) != len(ids):
+            raise RuntimeError("Shopify availability read failed")
+        return nodes
+    raise RuntimeError("Shopify availability retry limit reached")
 
 
 def apply_source(row, node):
@@ -72,10 +96,7 @@ def refresh(mount):
     for start in range(0, len(rows), 100):
         batch = rows[start:start + 100]
         ids = [row["id"] for row in batch]
-        response = shopify_post(endpoint, token, {"query": QUERY, "variables": {"ids": ids}})
-        nodes = (response.get("data") or {}).get("nodes")
-        if response.get("errors") or not isinstance(nodes, list) or len(nodes) != len(batch):
-            raise RuntimeError("Shopify availability read failed")
+        nodes = read_nodes(endpoint, token, ids)
         for row, node in zip(batch, nodes):
             if node is not None and node.get("id") != row["id"]:
                 raise RuntimeError("Mismatched Shopify variant response")
