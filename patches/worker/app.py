@@ -211,3 +211,6 @@ def probe_feed_shopify_staging():
                 category = "CONFIG_VALIDATION_ERROR"
             print(f"[feeds] Shopify diagnostic: {stage.upper()}_{category}", flush=True)
     threading.Thread(target=probe, daemon=True, name="feed-staging-probe").start()
+
+from feeds.sample_api import router as feed_preview_router
+app.include_router(feed_preview_router)
