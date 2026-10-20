@@ -21,13 +21,13 @@ def catalog_query():
     )
     return """
     query FeedMarkets($cursor: String) {
-      products(first: 50, after: $cursor, sortKey: ID) {
+      products(first: 5, after: $cursor, sortKey: ID) {
         pageInfo { hasNextPage endCursor }
         nodes {
           id title handle descriptionHtml status vendor productType
           featuredImage { url }
           """ + publication + """
-          variants(first: 100) {
+          variants(first: 25) {
             pageInfo { hasNextPage }
             nodes {
               id sku barcode inventoryQuantity inventoryPolicy
@@ -53,11 +53,21 @@ def read_markets_catalog(store=None, token=None, version="2026-07", max_pages=10
         response.raise_for_status()
         payload = response.json()
         if payload.get("errors"):
-            raise RuntimeError("Shopify Markets GraphQL query failed")
+            codes = {str((item.get("extensions") or {}).get("code", "")).upper()
+                     for item in payload["errors"] if isinstance(item, dict)}
+            descriptions = " ".join(str(item.get("message", "")).lower()
+                                    for item in payload["errors"] if isinstance(item, dict))
+            if "MAX_COST_EXCEEDED" in codes or "cost" in descriptions and "exceed" in descriptions:
+                raise RuntimeError("SHOPIFY_GRAPHQL_QUERY_COST")
+            if "ACCESS_DENIED" in codes or "access denied" in descriptions:
+                raise RuntimeError("SHOPIFY_GRAPHQL_ACCESS_DENIED")
+            if "undefinedfield" in descriptions or "doesn't exist" in descriptions:
+                raise RuntimeError("SHOPIFY_GRAPHQL_SCHEMA_MISMATCH")
+            raise RuntimeError("SHOPIFY_GRAPHQL_REJECTED")
         page = payload["data"]["products"]
         for product in page["nodes"]:
             if product["variants"]["pageInfo"]["hasNextPage"]:
-                raise RuntimeError("Product has over 100 variants: pagination required before feed export")
+                raise RuntimeError("Product has over 25 variants: pagination required before feed export")
             yield product
         if not page["pageInfo"]["hasNextPage"]:
             return
