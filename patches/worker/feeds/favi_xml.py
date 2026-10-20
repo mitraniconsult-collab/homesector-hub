@@ -22,14 +22,6 @@ def validate(row, market):
         issues.append("invalid_favi_alphanumeric_id")
     if row.get("item_group_id") and not is_safe_favi_id(row["item_group_id"]):
         issues.append("invalid_favi_group_id")
-    if not row.get("available"):
-        date = str(row.get("availability_date") or "")
-        try:
-            valid = bool(date and datetime.fromisoformat(date.replace("Z", "+00:00")).tzinfo)
-        except ValueError:
-            valid = False
-        if not valid:
-            issues.append("missing_backorder_availability_date")
     if row.get("link"):
         parsed = urlsplit(str(row["link"]))
         if parsed.fragment or any(c.isspace() for c in str(row["link"])):
