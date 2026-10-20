@@ -52,10 +52,12 @@ def create_preview(mount):
             if p.get("handle"):
                 cat_by_handle[p["handle"]] = p
     historic = {}
+    known_legacy = set()
     history_path = root / "favi-historical-id-matches.json"
     if history_path.exists():
         for match in json.loads(history_path.read_text()):
             gid, oldid = match["new_shopify_gid"], match["legacy_favi_candidate_id"]
+            known_legacy.add(gid)
             if is_safe_favi_id(oldid):
                 historic[gid] = oldid
     prepared, causes, per_path = [], Counter(), Counter()
@@ -73,6 +75,11 @@ def create_preview(mount):
             if row.get("id") in historic:
                 row["id"] = historic[row["id"]]
                 old_ids += 1
+            elif row.get("id") in known_legacy:
+                # Never silently change IDs for products in the active legacy
+                # XML. These require explicit FAVI migration approval.
+                causes["legacy_id_requires_migration_review"] += 1
+                continue
             else:
                 row["id"] = variant_feed_id(row["id"])
                 new_ids += 1
@@ -98,6 +105,7 @@ def create_preview(mount):
         "reused_historical_ids": old_ids,
         "new_stable_ids": new_ids,
         "skipped_no_checked_mapping": causes["no_checked_category_mapping"],
+        "blocked_legacy_id_migration": causes["legacy_id_requires_migration_review"],
         "serializer_rejections": xml_report["excluded_reasons"],
         "category_paths_await_favi_approval": True,
         "historical_ids_not_verified_in_favi_panel": True,
