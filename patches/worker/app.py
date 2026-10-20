@@ -159,11 +159,34 @@ def probe_feed_shopify_staging():
     if os.environ.get("RENDER_SERVICE_NAME") != "homesector-worker-feed-staging":
         return
     def probe():
+        stage = "credentials"
         try:
+            from feeds.shopify_auth import get_admin_token
             from feeds.markets_catalog import read_markets_catalog
-            iterator = read_markets_catalog(max_pages=1)
+            store = os.environ.get("SHOPIFY_STORE", "").strip()
+            if not store or not store.endswith(".myshopify.com"):
+                print("[feeds] Shopify diagnostic: STORE_HOST_MISSING_OR_INVALID", flush=True)
+                return
+            if not (os.environ.get("SHOPIFY_ADMIN_ACCESS_TOKEN") or
+                    (os.environ.get("SHOPIFY_CLIENT_ID") and os.environ.get("SHOPIFY_CLIENT_SECRET"))):
+                print("[feeds] Shopify diagnostic: ACCESS_CREDENTIALS_MISSING", flush=True)
+                return
+            get_admin_token(store)
+            stage = "catalog_query"
+            iterator = read_markets_catalog(store=store, max_pages=1)
             first = next(iterator, None)
-            print("[feeds] Shopify read-only check: OK" if first else "[feeds] Shopify read-only check: EMPTY", flush=True)
+            print("[feeds] Shopify diagnostic: CATALOG_OK" if first else "[feeds] Shopify diagnostic: CATALOG_EMPTY", flush=True)
         except Exception as exc:
-            print(f"[feeds] Shopify read-only check: FAILED ({type(exc).__name__})", flush=True)
+            import requests
+            category = "UNEXPECTED_ERROR"
+            if isinstance(exc, requests.HTTPError):
+                code = exc.response.status_code if exc.response is not None else 0
+                category = f"SHOPIFY_HTTP_{code}"
+            elif isinstance(exc, requests.Timeout):
+                category = "SHOPIFY_TIMEOUT"
+            elif isinstance(exc, RuntimeError):
+                category = "CATALOG_GRAPHQL_REJECTED" if stage == "catalog_query" else "TOKEN_EXCHANGE_FAILED"
+            elif isinstance(exc, ValueError):
+                category = "CONFIG_VALIDATION_ERROR"
+            print(f"[feeds] Shopify diagnostic: {stage.upper()}_{category}", flush=True)
     threading.Thread(target=probe, daemon=True, name="feed-staging-probe").start()
