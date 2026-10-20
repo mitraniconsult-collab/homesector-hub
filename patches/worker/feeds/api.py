@@ -34,10 +34,12 @@ def catalog_config(authorization: str | None = Header(default=None)):
     if authorization != "Bearer " + token:
         raise HTTPException(401, "Unauthorized")
     store = os.environ.get("SHOPIFY_STORE", "").strip()
+    oauth_ready = bool(os.environ.get("SHOPIFY_CLIENT_ID")) and bool(os.environ.get("SHOPIFY_CLIENT_SECRET"))
     return {
+        "shopify_oauth_credentials_configured": oauth_ready,
         "shopify_store_configured": store.endswith(".myshopify.com"),
         "shopify_admin_token_configured": bool(os.environ.get("SHOPIFY_ADMIN_ACCESS_TOKEN")),
         "catalog_ready": store.endswith(".myshopify.com")
-                         and bool(os.environ.get("SHOPIFY_ADMIN_ACCESS_TOKEN")),
+                         and (bool(os.environ.get("SHOPIFY_ADMIN_ACCESS_TOKEN")) or oauth_ready),
         "read_only": True,
     }
