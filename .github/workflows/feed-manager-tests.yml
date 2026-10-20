@@ -23,4 +23,4 @@ jobs:
       - name: Offline feed regression tests
         env:
           PYTHONPATH: patches/worker
-        run: python -m pytest -q patches/worker/tests/test_feed_quality.py patches/worker/tests/test_category_mapping.py patches/worker/tests/test_feed_ids.py patches/worker/tests/test_shopify_translations.py patches/worker/tests/test_market_feed_rows.py patches/worker/tests/test_durable_journal.py patches/worker/tests/test_batch_job.py
+        run: python -m pytest -q patches/worker/tests/test_feed_quality.py patches/worker/tests/test_category_mapping.py patches/worker/tests/test_feed_ids.py patches/worker/tests/test_shopify_translations.py patches/worker/tests/test_market_feed_rows.py patches/worker/tests/test_durable_journal.py patches/worker/tests/test_batch_job.py patches/worker/tests/test_xml_audit.py
