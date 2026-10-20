@@ -5,6 +5,7 @@ Does not assume all countries share the store's base prices.
 """
 import os
 import requests
+from .shopify_auth import get_admin_token
 
 COUNTRIES = ("BG", "RO", "GR", "HU")
 
@@ -41,7 +42,7 @@ def catalog_query():
 
 def read_markets_catalog(store=None, token=None, version="2026-07", max_pages=1000):
     store = (store or os.environ.get("SHOPIFY_STORE", "")).strip()
-    token = token or os.environ.get("SHOPIFY_ADMIN_ACCESS_TOKEN", "")
+    token = token or get_admin_token(store)
     if not store.endswith(".myshopify.com") or not token:
         raise ValueError("Valid SHOPIFY_STORE and SHOPIFY_ADMIN_ACCESS_TOKEN required")
     url = f"https://{store}/admin/api/{version}/graphql.json"
