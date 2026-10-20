@@ -28,7 +28,7 @@ def catalog_query():
           featuredImage { url }
           """ + publication + """
           variants(first: 25) {
-            pageInfo { hasNextPage }
+            pageInfo { hasNextPage endCursor }
             nodes {
               id sku barcode inventoryQuantity inventoryPolicy
               image { url }
@@ -40,7 +40,7 @@ def catalog_query():
     }
     """
 
-def read_markets_catalog(store=None, token=None, version="2026-07", max_pages=1000):
+def read_markets_catalog(store=None, token=None, version="2026-07", max_pages=10000):
     store = (store or os.environ.get("SHOPIFY_STORE", "")).strip()
     token = token or get_admin_token(store)
     if not store.endswith(".myshopify.com") or not token:
@@ -67,7 +67,10 @@ def read_markets_catalog(store=None, token=None, version="2026-07", max_pages=10
         page = payload["data"]["products"]
         for product in page["nodes"]:
             if product["variants"]["pageInfo"]["hasNextPage"]:
-                raise RuntimeError("Product has over 25 variants: pagination required before feed export")
+                product["variants"]["nodes"].extend(
+                    read_remaining_variants(url, token, product["id"],
+                                            product["variants"]["pageInfo"]["endCursor"]))
+                product["variants"]["pageInfo"]["hasNextPage"] = False
             yield product
         if not page["pageInfo"]["hasNextPage"]:
             return
@@ -75,3 +78,45 @@ def read_markets_catalog(store=None, token=None, version="2026-07", max_pages=10
         if not cursor:
             raise RuntimeError("Missing pagination cursor")
     raise RuntimeError("Shopify catalog pagination limit reached")
+
+def read_remaining_variants(url, token, product_id, cursor):
+    """Page through every variant; fail rather than silently drop any."""
+    if not cursor:
+        raise RuntimeError("Missing variant cursor")
+    pricing = "\n".join(
+        f"price_{country}: contextualPricing(context: {{country: {country}}}) "
+        "{ price { amount currencyCode } }" for country in COUNTRIES
+    )
+    query = """
+    query FeedVariants($productId: ID!, $cursor: String) {
+      product(id: $productId) {
+        variants(first: 25, after: $cursor) {
+          pageInfo { hasNextPage endCursor }
+          nodes {
+            id sku barcode inventoryQuantity inventoryPolicy
+            image { url }
+            """ + pricing + """
+          }
+        }
+      }
+    }
+    """
+    all_variants = []
+    for _ in range(1000):
+        response = requests.post(
+            url, headers={"X-Shopify-Access-Token": token},
+            json={"query": query, "variables": {"productId": product_id, "cursor": cursor}},
+            timeout=60)
+        response.raise_for_status()
+        payload = response.json()
+        if payload.get("errors") or not (payload.get("data") or {}).get("product"):
+            raise RuntimeError("Shopify variant pagination query failed")
+        page = payload["data"]["product"]["variants"]
+        all_variants.extend(page["nodes"])
+        if not page["pageInfo"]["hasNextPage"]:
+            return all_variants
+        new_cursor = page["pageInfo"]["endCursor"]
+        if not new_cursor or new_cursor == cursor:
+            raise RuntimeError("Invalid Shopify variant pagination cursor")
+        cursor = new_cursor
+    raise RuntimeError("Shopify variant pagination limit reached")
