@@ -221,3 +221,11 @@ def probe_feed_shopify_staging():
 
 from feeds.sample_api import router as feed_preview_router
 app.include_router(feed_preview_router)
+
+from feeds.full_audit import router as google_bg_full_audit_router, start_once as start_google_bg_audit
+app.include_router(google_bg_full_audit_router)
+
+@app.on_event("startup")
+def run_google_bg_staging_audit():
+    if start_google_bg_audit():
+        print("[feeds] BG full audit STARTED (staging only, unpublished)", flush=True)
