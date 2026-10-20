@@ -16,6 +16,7 @@ from .markets_catalog import read_markets_catalog
 from .markets_normalize import normalize_market
 from .config import eligible
 from .xml_export import generate
+from .checkpoint import LocalCheckpoint
 
 router = APIRouter(prefix="/feeds/google/BG", tags=["feeds"])
 ROOT = Path(tempfile.gettempdir()) / "homesector-feed-audit"
@@ -44,8 +45,31 @@ def run_export():
     reasons = Counter()
     rows = []
     ids = set()
+    checkpoint = LocalCheckpoint(ROOT)
     try:
-        for product in read_markets_catalog():
+        cursor, rows, old_reasons, scanned, checked = checkpoint.load()
+        reasons.update(old_reasons)
+        ids = {row["id"] for row in rows}
+        with GUARD:
+            STATE.update(products_scanned=scanned, variants_checked=checked,
+                         items_exported=len(rows), excluded=dict(reasons),
+                         checkpoint_storage="ephemeral_render_filesystem",
+                         resumed_from_checkpoint=scanned > 0)
+        if scanned:
+            print(f"[feeds] BG full audit RESUMED: products={scanned} items={len(rows)}", flush=True)
+
+        def after_page(next_cursor, has_more):
+            with GUARD:
+                current_scanned = STATE["products_scanned"]
+                current_checked = STATE["variants_checked"]
+                STATE["items_exported"] = len(rows)
+                STATE["excluded"] = dict(reasons)
+            checkpoint.save(next_cursor, has_more, rows, reasons,
+                            current_scanned, current_checked)
+
+        catalog = (() if cursor == "__FINALIZE__" else
+                   read_markets_catalog(start_cursor=cursor, on_page_done=after_page))
+        for product in catalog:
             variants = (product.get("variants") or {}).get("nodes") or []
             with GUARD:
                 STATE["products_scanned"] += 1
@@ -99,6 +123,7 @@ def run_export():
         temp_path = XML_PATH.with_suffix(".tmp")
         temp_path.write_bytes(xml)
         os.replace(temp_path, XML_PATH)
+        checkpoint.clear()
         with GUARD:
             STATE.update(status="completed", items_exported=count,
                          excluded=dict(reasons), completed_at=now())
@@ -123,7 +148,7 @@ def start_once():
 def full_audit_status(authorization: str | None = Header(default=None)):
     authorized(authorization)
     return {**state_snapshot(), "published_to_google": False,
-            "durable_storage": False}
+            "durable_storage": False, "checkpoint_survives_render_deploy": False}
 
 @router.get("/full-audit.xml")
 def full_audit_xml(authorization: str | None = Header(default=None)):
