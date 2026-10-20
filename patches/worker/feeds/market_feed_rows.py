@@ -9,6 +9,7 @@ from .localization import apply_verified_translations
 from .markets_normalize import normalize_market
 from .shopify_translations import fetch_translations
 from .targets import enabled
+from .feed_ids import export_ids
 
 def prepare_market_rows(products, market, channel, verified_url_ids=None,
                         translated_map=None):
@@ -29,6 +30,7 @@ def prepare_market_rows(products, market, channel, verified_url_ids=None,
             row = apply_verified_translations(
                 row, translated.get(market, []), market,
                 url_verified=(product["id"] in verified_url_ids))
+            row = export_ids(row, product["id"])
             issues = check_product(row, market, channel)
             if not row.get("id") or row["id"] in seen:
                 issues.append("duplicate_or_missing_variant_id")
