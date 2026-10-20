@@ -13,9 +13,16 @@ from xml.etree import ElementTree as ET
 from .favi_xml import generate_favi
 from .feed_ids import is_safe_favi_id, variant_feed_id
 
-# Exact source taxonomy -> attested FAVI BG public category list paths.
-# Never infer from product title, broad parent categories or collections.
+# Exact Shopify taxonomy -> detailed Bulgarian category PROPOSALS.
+# FAVI allows own detailed, localized categories, but platform approval is still required.
+# Never infer from product titles, broad parent categories or collections.
 CATEGORY_MAP_BG = {
+    "Home & Garden > Decor > Seasonal & Holiday Decorations > Holiday Ornaments": "Коледа > Коледна украса > Играчки за елха",
+    "Home & Garden > Decor > Seasonal & Holiday Decorations > Seasonal Village Sets & Accessories": "Коледа > Коледна украса > Коледни селца и аксесоари",
+    "Home & Garden > Decor > Throw Pillows": "Домашен текстил > Декоративни възглавници",
+    "Home & Garden > Decor > Artificial Flora > Artificial Trees": "Декорация > Изкуствени растения > Изкуствени дървета",
+    "Home & Garden > Household Supplies > Storage & Organization > Household Storage Containers": "Организация на дома > Кутии за съхранение",
+    "Home & Garden > Kitchen & Dining > Tableware > Drinkware > Tumblers": "Кухня и трапезария > Чаши > Чаши за вода",
     "Home & Garden > Kitchen & Dining > Tableware > Dinnerware > Plates": "кухня и трапезария > за трапезата > съдове за хранене > чинии",
     "Home & Garden > Kitchen & Dining > Tableware > Dinnerware > Bowls": "кухня и трапезария > за трапезата > съдове за хранене > купи",
     "Home & Garden > Kitchen & Dining > Food Storage > Food Storage Containers": "кухня и трапезария > съхранение на храна > контейнери за храна",
