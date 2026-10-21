@@ -29,7 +29,9 @@ def _post_with_throttle(url, token, query, variables):
         return payload["data"]
     raise RuntimeError("Shopify translations retry limit reached")
 
-def translations_query(batch_size):
+def translations_query(batch_size, market=None):
+    if market is not None and market not in LOCALES:
+        raise ValueError('Unsupported translation locale')
     if not 1 <= batch_size <= BATCH_SIZE:
         raise ValueError("Unexpected Shopify translation batch size")
     vars_decl = ", ".join(f"$p{i}: ID!" for i in range(batch_size))
@@ -37,12 +39,12 @@ def translations_query(batch_size):
     for i in range(batch_size):
         translations = " ".join(
             f'{country.lower()}: translations(locale: "{locale}") {{ key value }}'
-            for country, locale in LOCALES.items()
+            for country, locale in LOCALES.items() if market is None or country == market
         )
         parts.append(f"p{i}: product(id: $p{i}) {{ id {translations} }}")
     return "query FeedProductTranslations(" + vars_decl + ") { " + " ".join(parts) + " }"
 
-def fetch_translations(product_ids, store=None, token=None, version="2026-07"):
+def fetch_translations(product_ids, store=None, token=None, version="2026-07", market=None):
     store = (store or os.environ.get("SHOPIFY_STORE", "")).strip()
     if not store.endswith(".myshopify.com") or "/" in store:
         raise ValueError("Invalid Shopify store")
@@ -57,15 +59,17 @@ def fetch_translations(product_ids, store=None, token=None, version="2026-07"):
     for start in range(0, len(ids), BATCH_SIZE):
         batch = ids[start:start + BATCH_SIZE]
         values = {f"p{i}": product_id for i, product_id in enumerate(batch)}
-        data = _post_with_throttle(url, token, translations_query(len(batch)), values)
+        data = _post_with_throttle(url, token, translations_query(len(batch), market), values)
         for i, product_id in enumerate(batch):
             product = data.get(f"p{i}")
             if not product or product.get("id") != product_id:
                 raise RuntimeError("Shopify translations response incomplete")
             result[product_id] = {
                 country: product.get(country.lower()) or []
-                for country in LOCALES
+                for country in LOCALES if market is None or country == market
             }
+        if start % 250 == 0:
+            print(f"[feed-translations] market={market or 'all'} checked={min(start + len(batch), len(ids))} total={len(ids)}", flush=True)
     return result
 
 
