@@ -21,11 +21,13 @@ MANIFEST = PREFIX + "current.json"
 
 
 class BlobStore:
-    def __init__(self, token):
+    def __init__(self, token, prefix=PREFIX):
         parts = token.split("_")
         if not token.startswith("vercel_blob_rw_") or len(parts) < 5 or not parts[3].isalnum():
             raise ValueError("Feed Blob credential is not configured")
-        self.token, self.store_id = token, parts[3]
+        if prefix not in (PREFIX, 'feeds/favi-gr/'):
+            raise ValueError('Invalid feed Blob prefix')
+        self.token, self.store_id, self.prefix = token, parts[3], prefix
 
     def headers(self):
         return {"Authorization": "Bearer " + self.token,
@@ -33,7 +35,7 @@ class BlobStore:
                 "Accept-Encoding": "identity"}
 
     def read(self, pathname):
-        if not pathname.startswith(PREFIX) or ".." in pathname:
+        if not pathname.startswith(self.prefix) or ".." in pathname:
             raise ValueError("Invalid feed Blob path")
         url = f"https://{self.store_id.lower()}.private.blob.vercel-storage.com/{pathname}"
         response = requests.get(url, params={"cache": "0"},
@@ -45,7 +47,7 @@ class BlobStore:
         return response.content, response.headers.get("etag")
 
     def put(self, pathname, data, content_type, overwrite=False, etag=None):
-        if not pathname.startswith(PREFIX) or ".." in pathname:
+        if not pathname.startswith(self.prefix) or ".." in pathname:
             raise ValueError("Invalid feed Blob path")
         headers = {**self.headers(), "x-vercel-blob-access": "private",
                    "x-add-random-suffix": "0", "x-allow-overwrite": "1" if overwrite else "0",
