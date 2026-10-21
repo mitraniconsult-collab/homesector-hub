@@ -15,13 +15,15 @@ PREFIX = "feeds/favi-gr/"
 MANIFEST = PREFIX + "current-preview.json"
 
 
-def publish_preview(mount):
+def publish_preview(mount, source_folder=None):
     root = Path(mount)
     if os.getenv("FEED_FAVI_GR_PREVIEW_PUBLISH") != "yes":
         return {"status": "disabled", "published": False}
     if os.getenv("FEED_DURABLE_STORAGE_CONFIRMED") != "yes" or not os.path.ismount(root):
         raise RuntimeError("Confirmed mounted feed storage required")
-    folder = root / "favi-gr-source"
+    folder = Path(source_folder or root / "favi-gr-source").resolve()
+    if not folder.is_relative_to(root.resolve()):
+        raise ValueError("FAVI GR source folder must be on the confirmed mount")
     xml = (folder / "favi-gr-private.xml").read_bytes()
     report = json.loads((folder / "favi-gr-report.json").read_text(encoding="utf-8"))
     audit = validate_xml(xml, "GR", max_issues=0)
