@@ -113,7 +113,8 @@ def run(mount, should_stop):
                     and not should_stop()):
                 try:
                     from .favi_gr_catalog import execute as scan_gr
-                    gr = scan_gr(batch_limit=25, root=mount, should_stop=should_stop)
+                    gr = scan_gr(batch_limit=int(os.getenv('FEED_GR_PAGE_LIMIT', '100')),
+                                 root=mount, should_stop=should_stop)
                     gr_complete = gr.get('source_complete', False)
                     print('[favi-gr-scan] ' + json.dumps(gr, sort_keys=True), flush=True)
                 except Exception as exc:
