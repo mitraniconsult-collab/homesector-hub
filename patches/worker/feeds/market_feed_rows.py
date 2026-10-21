@@ -19,7 +19,10 @@ def prepare_market_rows(products, market, channel, verified_url_ids=None,
     products = list(products)
     verified_url_ids = set(verified_url_ids or [])
     if market != "BG" and translated_map is None:
-        translated_map = fetch_translations([p["id"] for p in products], market=market)
+        translation_ids = ([p["id"] for p in products if p.get("id") in verified_url_ids]
+                           if market == "GR" and channel == "favi"
+                           else [p["id"] for p in products])
+        translated_map = fetch_translations(translation_ids, market=market)
     translations = translated_map or {}
     if market == "GR" and channel == "favi" and translated_variant_map is None:
         ids = [v["id"] for p in products if p.get("id") in verified_url_ids
