@@ -22,4 +22,5 @@ def test_public_url_check_rejects_redirected_domain():
     product = {"id": "p1", "handle": "hello-chair"}
     with patch("feeds.favi_gr_urls.requests.get", return_value=Response()):
         ids, report = verify_market_urls([product], {"p1": {"verified": True}}, workers=1)
-    assert ids == set() and report == {"checked": 1, "verified": 0}
+    assert ids == set() and report["checked"] == 1 and report["verified"] == 0
+    assert report["reasons"] == {"wrong_domain": 1}
