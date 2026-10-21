@@ -40,8 +40,10 @@ def _candidates(products, missing_ids, store, token):
                 handle = str(collection.get("handle") or "")
                 if handle and "/" not in handle and "?" not in handle and "#" not in handle:
                     handles.append(handle)
-            # A bounded number of real membership paths. Every path is checked.
-            result[node["id"]] = list(dict.fromkeys(handles))[:4]
+            # Prefer category collections over broad catalog, brand and promo paths.
+            generic = {"allproducts", "atmosphera", "5five", "hesperide", "buy3pay2"}
+            specific = [h for h in dict.fromkeys(handles) if h.casefold() not in generic]
+            result[node["id"]] = (specific or list(dict.fromkeys(handles)))[:2]
     return result
 
 
@@ -52,7 +54,7 @@ def _check(product, collections):
     for collection in collections:
         path = "/collections/" + quote(collection, safe="-") + "/products/" + quote(handle, safe="-")
         try:
-            response = requests.get("https://homesector.gr" + path, timeout=15,
+            response = requests.get("https://homesector.gr" + path, timeout=5,
                                     allow_redirects=True,
                                     headers={"User-Agent": "HomesectorFeedVerifier/1.0"})
             final = urlparse(response.url)
@@ -67,7 +69,7 @@ def _check(product, collections):
     return None
 
 
-def verify_collection_urls(products, already_verified, store, token, workers=8):
+def verify_collection_urls(products, already_verified, store, token, workers=16):
     if not 1 <= workers <= 16:
         raise ValueError("Invalid URL verification concurrency")
     missing = {p["id"]: p for p in products if p.get("id") not in already_verified}
