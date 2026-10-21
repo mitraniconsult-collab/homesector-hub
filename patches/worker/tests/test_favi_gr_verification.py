@@ -24,3 +24,15 @@ def test_public_url_check_rejects_redirected_domain():
         ids, report = verify_market_urls([product], {"p1": {"verified": True}}, workers=1)
     assert ids == set() and report["checked"] == 1 and report["verified"] == 0
     assert report["reasons"] == {"wrong_domain": 1}
+
+
+def test_public_url_check_accepts_percent_encoded_cyrillic_handle():
+    class Response:
+        status_code = 200
+        headers = {"Content-Type": "text/html; charset=utf-8"}
+        text = "<html><body>кутия</body></html>"
+        url = "https://homesector.gr/products/%D0%BA%D1%83%D1%82%D0%B8%D1%8F"
+    product = {"id": "p2", "handle": "кутия"}
+    with patch("feeds.favi_gr_urls.requests.get", return_value=Response()):
+        ids, report = verify_market_urls([product], {"p2": {"verified": True}}, workers=1)
+    assert ids == {"p2"} and report["verified"] == 1
