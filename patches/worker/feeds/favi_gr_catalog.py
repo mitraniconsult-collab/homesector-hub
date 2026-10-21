@@ -121,7 +121,7 @@ def finalize(journal, root, store=None, token=None):
         len((p.get("variants") or {}).get("nodes") or []) for p in greek_products)
     report["mapped_category_products"] = len(categories)
     report["verified_market_url_products"] = len(
-        set(urls) | set(auto_urls) | set(collection_urls))
+        (set(urls) | set(auto_urls) | set(collection_urls)) & set(categories))
     report["localized_copy_products_in_mapped_categories"] = sum(
         {"title", "body_html"}.issubset({
             entry.get("key") for entry in
