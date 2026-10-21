@@ -3,8 +3,15 @@ import { SESSION_COOKIE, validSession, workerRequest, sameOrigin } from "@/lib/h
 
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
-  // Only published XML feeds are public; diagnostic reports remain private.
-  const feed = ["/feeds/google/BG.xml", "/feeds/favi/GR-preview.xml"].includes(path) && ["GET", "HEAD"].includes(request.method);
+  // Exact read-only feed endpoints must remain accessible to feed consumers.
+  // Keep the Feeds dashboard and all other Hub routes behind the session.
+  const publicFeedPaths = [
+    "/feeds/google/BG.xml",
+    "/feeds/google/BG-comparison.json",
+    "/feeds/favi/GR-preview.xml",
+    "/feeds/favi/GR-preview-report.json",
+  ];
+  const feed = publicFeedPaths.includes(path) && ["GET", "HEAD"].includes(request.method);
   if (feed || workerRequest(request)) return NextResponse.next();
   const publicAuth = path === "/login" || path === "/api/auth/login";
   if (!publicAuth && !await validSession(request.cookies.get(SESSION_COOKIE)?.value)) {
