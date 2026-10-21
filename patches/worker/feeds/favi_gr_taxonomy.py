@@ -25,6 +25,18 @@ TAXONOMY_TO_FAVI_GR = {
     "gid://shopify/TaxonomyCategory/hg-3-64": (
         "Διακοσμητικά μαξιλάρια και μαξιλαροθήκες > Διακοσμητικά μαξιλάρια",
         "https://favi.gr/proionta/kathgoria/maxilarakia-richtaria-kai-maxilarothikes/diakosmitika-maxilaria"),
+    "gid://shopify/TaxonomyCategory/hg-3-47": (
+        "Καθρέφτες", "https://favi.gr/proionta/kathgoria/kathreftes"),
+    "gid://shopify/TaxonomyCategory/hg-3-57": (
+        "Χαλιά", "https://favi.gr/proionta/kathgoria/halia"),
+    "gid://shopify/TaxonomyCategory/hg-11-2-3-13-1": (
+        "Τηγάνια", "https://favi.gr/proionta/kathgoria/tigania"),
+    "gid://shopify/TaxonomyCategory/hg-15-1-2": (
+        "Σεντόνια", "https://favi.gr/proionta/kathgoria/sentonia"),
+    "gid://shopify/TaxonomyCategory/hg-12-2-8-1": (
+        "Ομπρέλες κήπου", "https://favi.gr/proionta/kathgoria/ompreles-kipou"),
+    "gid://shopify/TaxonomyCategory/hg-10-18-4-1": (
+        "Κάδοι απορριμμάτων", "https://favi.gr/proionta/kathgoria/kadoi-aporrimmatwn"),
 }
 
 
@@ -37,3 +49,4 @@ def categories_for_products(products, explicit):
             result[product["id"]] = {"market": "GR", "verified": True, "path": match[0]}
     result.update(explicit)
     return result
+
