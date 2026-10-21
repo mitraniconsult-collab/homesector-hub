@@ -48,7 +48,7 @@ def _candidates(products, missing_ids, store, token):
 
 
 def _check(product, collections, translated_handle=""):
-    handles = dict.fromkeys((translated_handle, str(product.get("handle") or "")))
+    handles = dict.fromkeys((str(product.get("handle") or ""), translated_handle))
     for handle in handles:
         if not handle or "/" in handle or "?" in handle or "#" in handle:
             continue
