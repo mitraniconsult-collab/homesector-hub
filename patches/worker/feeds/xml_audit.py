@@ -27,7 +27,9 @@ def validate_xml(content, market="BG", max_issues=25):
     currency = MARKETS[market]["currency"]
     domain = MARKETS[market]["domain"]
     for item in items:
-        data = {key: (item.findtext(G + key) or\n                      (item.findtext(key) if key in ("title", "description", "link") else None)\n                      or "").strip() for key in REQUIRED}
+        data = {key: (item.findtext(G + key) or
+                      (item.findtext(key) if key in ("title", "description", "link") else None)
+                      or "").strip() for key in REQUIRED}
         issues = set()
         for key in REQUIRED:
             if not data[key]:
