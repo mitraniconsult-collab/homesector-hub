@@ -51,13 +51,13 @@ def execute(batch_limit=10, root=None, store=None, token=None, should_stop=lambd
         if cursor is not None and cursor in seen:
             raise RuntimeError("Repeated Shopify pagination cursor")
         seen.add(cursor)
-        page = post_graphql(url, token, catalog_query(), {"cursor": cursor})["products"]
+        page = post_graphql(url, token, catalog_query(gr_only=True), {"cursor": cursor})["products"]
         nodes = page["nodes"]
         for product in nodes:
             variants = product["variants"]
             if variants["pageInfo"]["hasNextPage"]:
                 variants["nodes"].extend(read_remaining_variants(
-                    url, token, product["id"], variants["pageInfo"]["endCursor"]))
+                    url, token, product["id"], variants["pageInfo"]["endCursor"], gr_only=True))
                 variants["pageInfo"]["hasNextPage"] = False
         end = page["pageInfo"]["endCursor"]
         more = bool(page["pageInfo"]["hasNextPage"])
