@@ -38,7 +38,7 @@ class LogisticsRequest(BaseModel):
 
 @app.get("/health")
 def health(authorization: str | None = Header(default=None)):
-    auth(authorization); return {"ok":True,"tasks":len(TASKS),"stock_sync_version":2,"reports_version":1,"import_version":5,"order_skus_version":1,"image_jobs_version":2,"ai_available":{"claude":bool(os.environ.get("ANTHROPIC_API_KEY")),"openai":bool(os.environ.get("OPENAI_API_KEY"))},"time":datetime.now().astimezone().isoformat(timespec="seconds")}
+    auth(authorization); return {"ok":True,"tasks":len(TASKS),"stock_sync_version":2,"reports_version":1,"import_version":5,"order_skus_version":1,"image_jobs_version":2,"image_jobs_vendor_filter":True,"ai_available":{"claude":bool(os.environ.get("ANTHROPIC_API_KEY")),"openai":bool(os.environ.get("OPENAI_API_KEY"))},"time":datetime.now().astimezone().isoformat(timespec="seconds")}
 
 @app.get("/jobs")
 def jobs(authorization: str | None = Header(default=None)):
@@ -110,6 +110,7 @@ class ImageRunRequest(BaseModel):
     mode: str = Field(default="dry", pattern="^(dry|real)$")
     limit: int = Field(default=100, ge=1, le=5000)
     collection_id: str = Field(default="", pattern="^([0-9]+)?$")
+    vendor: str = Field(default="", max_length=100)
 
 @app.on_event("startup")
 def recover_image_jobs():
@@ -128,10 +129,16 @@ def image_job_status(authorization: str | None = Header(default=None)):
 @app.post("/image-jobs")
 def image_job_start(req: ImageRunRequest, authorization: str | None = Header(default=None)):
     auth(authorization)
-    try: return {"job": IMAGE_JOBS.start(req.mode, req.limit, req.collection_id)}
+    try: return {"job": IMAGE_JOBS.start(req.mode, req.limit, req.collection_id, req.vendor)}
     except Conflict as exc: raise HTTPException(409,str(exc))
     except ValueError as exc: raise HTTPException(400,str(exc))
     except Exception: raise HTTPException(503,"Не може да се запише задачата. Проверете хранилището.")
+
+@app.get("/image-jobs/vendors")
+def image_job_vendors(authorization: str | None = Header(default=None)):
+    auth(authorization)
+    try: return {"vendors": IMAGE_JOBS.vendors()}
+    except Exception: raise HTTPException(503,"Брандовете не могат да се заредят от Shopify. Опитайте отново.")
 
 @app.post("/image-jobs/{action}")
 def image_job_control(action: str, authorization: str | None = Header(default=None)):

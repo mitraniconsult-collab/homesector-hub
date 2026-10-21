@@ -10,6 +10,7 @@ import sys
 import threading
 import time
 import uuid
+import unicodedata
 from pathlib import Path
 from collections import Counter
 import requests
@@ -22,6 +23,7 @@ from import_rules import sku, ean
 from image_quality import candidate, gallery_plan, fingerprint, images
 
 SCAN = '''query QualityCandidates($cursor:String,$query:String!){products(first:25,after:$cursor,query:$query,sortKey:ID){nodes{id title vendor variants(first:2){nodes{sku barcode} pageInfo{hasNextPage}} media(first:10){nodes{id status ... on MediaImage{image{id url width height}}} pageInfo{hasNextPage}}} pageInfo{hasNextPage endCursor}}}'''
+VENDORS = '''query ImageJobVendors($cursor:String){productVendors(first:250,after:$cursor){nodes pageInfo{hasNextPage endCursor}}}'''
 QUALITY_PRODUCT = '''query QualityProduct($id:ID!){product(id:$id){id title vendor status variants(first:2){nodes{id sku barcode image{id}} pageInfo{hasNextPage}} media(first:250){nodes{id alt status ... on MediaImage{image{id url width height}}} pageInfo{hasNextPage}}}}'''
 DETACH = '''mutation QualityDetach($files:[FileUpdateInput!]!){fileUpdate(files:$files){files{id} userErrors{field message}}}'''
 
@@ -38,6 +40,27 @@ LEASE = 240
 
 class Conflict(RuntimeError): pass
 class Stopped(RuntimeError): pass
+
+def vendor_key(value):
+    return ''.join(c for c in unicodedata.normalize('NFKD', value or '') if not unicodedata.combining(c)).casefold().strip()
+
+def clean_vendor(value):
+    if not isinstance(value, str) or len(value) > 100 or any(unicodedata.category(c).startswith('C') for c in value):
+        raise ValueError('Невалиден бранд')
+    return value.strip()
+
+def matches_vendor(product, vendor):
+    return not vendor or vendor_key(product.get('vendor')) == vendor_key(vendor)
+
+def scan_query(state):
+    query = 'status:active'
+    if state.get('collection_id'): query += ' collection_id:' + state['collection_id']
+    vendor = state.get('vendor', '')
+    if vendor:
+        aliases = {vendor, vendor_key(vendor)}
+        if vendor_key(vendor) == 'hesperide': aliases.update(('Hesperide', 'Hespéride'))
+        query += ' (' + ' OR '.join('vendor:' + json.dumps(v, ensure_ascii=False) for v in sorted(aliases)) + ')'
+    return query
 
 class RemoteState:
     def __init__(self):
@@ -61,7 +84,7 @@ class RemoteState:
 
 def summary(state):
     if not state: return None
-    result = {k: state.get(k) for k in ('id','status','phase','mode','created_at','updated_at','cursor','scanned','limit','collection_id','error','ai_calls')}
+    result = {k: state.get(k) for k in ('id','status','phase','mode','created_at','updated_at','cursor','scanned','limit','collection_id','vendor','error','ai_calls')}
     result['total'] = len(state['items'])
     result['counts'] = dict(Counter(i.get('result', 'pending') for i in state['items']))
     result['recent'] = [{k:i.get(k) for k in ('id','sku','title','result','note','source_url','image_count','remove_ids')} for i in state['items'] if i.get('result')][-20:]
@@ -102,7 +125,22 @@ class ImageJobs:
         self.shutdown = threading.Event()
         self.thread = None
     def status(self): return summary(self.store.read()[0])
-    def start(self, mode, limit, collection_id=''):
+    def vendors(self):
+        config = {k:os.environ.get(k,'') for k in ('SHOPIFY_STORE','SHOPIFY_CLIENT_ID','SHOPIFY_CLIENT_SECRET')}
+        shop = Shopify(config)
+        cursor = None
+        seen = set()
+        values = set()
+        while True:
+            conn = shop.call(VENDORS, {'cursor':cursor})['productVendors']
+            values.update(v for v in conn['nodes'] if isinstance(v,str) and v.strip())
+            info = conn['pageInfo']
+            if not info['hasNextPage']: return sorted(values, key=vendor_key)
+            cursor = info.get('endCursor')
+            if not cursor or cursor in seen: raise RuntimeError('Непълна Shopify пагинация за брандовете')
+            seen.add(cursor)
+    def start(self, mode, limit, collection_id='', vendor=''):
+        vendor = clean_vendor(vendor)
         if mode == 'real' and not os.environ.get('OPENAI_API_KEY'): raise ValueError('Липсва OPENAI_API_KEY в Worker')
         for key in ('SHOPIFY_STORE','SHOPIFY_CLIENT_ID','SHOPIFY_CLIENT_SECRET'):
             if not os.environ.get(key): raise ValueError('Липсва ' + key)
@@ -111,7 +149,7 @@ class ImageJobs:
             if old and old['status'] not in ('success','cancelled'): raise Conflict('Има незавършена задача. Използвайте Продължи или Прекрати.')
             protected = set((old or {}).get('protected_ids',[]))
             protected.update(i['id'] for i in (old or {}).get('items',[]) if i.get('attempted') and i.get('result') not in ('ADDED','IMPROVED','UNCHANGED'))
-            state = {'protected_ids':sorted(protected),'version':1,'id':uuid.uuid4().hex,'status':'running','phase':'scan','mode':mode,'limit':limit,'collection_id':collection_id,'created_at':time.time(),'updated_at':time.time(),'owner':'','lease_until':0,'scan_cursor':None,'scanned':0,'cursor':0,'ai_calls':0,'quality_version':2,'items':[]}
+            state = {'protected_ids':sorted(protected),'version':1,'id':uuid.uuid4().hex,'status':'running','phase':'scan','mode':mode,'limit':limit,'collection_id':collection_id,'vendor':vendor,'created_at':time.time(),'updated_at':time.time(),'owner':'','lease_until':0,'scan_cursor':None,'scanned':0,'cursor':0,'ai_calls':0,'quality_version':2,'items':[]}
             self.store.write(state, tag)
         self.wake(); return summary(state)
     def control(self, action):
@@ -177,11 +215,11 @@ class ImageJobs:
                 if state.get('retry_at',0) > time.time():
                     self.shutdown.wait(min(15,state['retry_at']-time.time())); continue
                 if state['phase'] == 'scan':
-                    query = 'status:active'
-                    if state['collection_id']: query += ' collection_id:' + state['collection_id']
+                    query = scan_query(state)
                     conn = shop.call(SCAN, {'cursor':state['scan_cursor'],'query':query})['products']
                     eligible=set()
                     for p in conn['nodes']:
+                        if not matches_vendor(p, state.get('vendor', '')): continue
                         try:
                             if candidate(p):eligible.add(p['id'])
                         except (requests.RequestException,ValueError):eligible.add(p['id'])
@@ -238,6 +276,7 @@ class ImageJobs:
                 if result=='WAITING_MEDIA':return result
             item.update(result=result,note='Галерията е потвърдена в Shopify' if result in ('ADDED','IMPROVED') else 'Непотвърден запис; новите снимки са запазени, старите не се премахват повторно')
             return result
+        if not matches_vendor(product, state.get('vendor', '')): raise ValueError('Брандът вече не съответства на избраната задача')
         variants = product['variants']['nodes']
         if len(variants)!=1 or product['variants']['pageInfo']['hasNextPage']: raise ValueError('Променени варианти')
         if sku(variants[0].get('sku'))!=item['sku'] or ean(variants[0].get('barcode'))!=item['barcode']: raise ValueError('Променени SKU/EAN')

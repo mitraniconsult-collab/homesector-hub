@@ -18,6 +18,66 @@ class State:
 class ImagesTests(unittest.TestCase):
     def item(self): return {'id':'gid://shopify/Product/1','sku':'123','barcode':'','title':'Маса','vendor':'Hesperide','urls':['https://media.decorationbrands.com/media/catalog/product/3/5/a.jpg'],'attempted':True,'attempted_at':time.time()}
     def product(self): return {'title':'Маса','vendor':'Hesperide','status':'ACTIVE','media':{'nodes':[]},'variants':{'nodes':[{'sku':'123','barcode':''}],'pageInfo':{'hasNextPage':False}}}
+    def test_brand_is_saved_and_survives_pause_and_resume(self):
+        store=State();manager=jobs.ImageJobs(store)
+        env={'SHOPIFY_STORE':'shop','SHOPIFY_CLIENT_ID':'id','SHOPIFY_CLIENT_SECRET':'secret'}
+        with patch.dict('os.environ',env),patch.object(manager,'wake'):
+            result=manager.start('dry',100,vendor=' Hespéride ')
+            manager.control('pause');result=manager.control('resume')
+        self.assertEqual(result['vendor'],'Hespéride')
+        self.assertEqual(store.state['vendor'],'Hespéride')
+        self.assertIn('vendor:"Hesperide"',jobs.scan_query(store.state))
+        self.assertIn('vendor:"Hespéride"',jobs.scan_query(store.state))
+    def test_brand_query_combines_collection_and_quotes_search_characters(self):
+        query=jobs.scan_query({'vendor':'ACME " OR status:draft','collection_id':'123'})
+        self.assertTrue(query.startswith('status:active collection_id:123 ('))
+        self.assertIn('vendor:"ACME \\" OR status:draft"',query)
+        self.assertEqual(jobs.scan_query({}),'status:active')
+        self.assertTrue(jobs.matches_vendor({'vendor':'Hesperide'},'Hespéride'))
+        self.assertFalse(jobs.matches_vendor({'vendor':'Hesperide Garden'},'Hesperide'))
+    def test_invalid_brand_cannot_be_saved(self):
+        for vendor in ('Hesperide\nOR status:draft','x'*101,None):
+            with self.assertRaises(ValueError):jobs.clean_vendor(vendor)
+    def test_scan_filters_other_brands_before_candidate_checks_and_limit(self):
+        store=State();manager=jobs.ImageJobs(store)
+        env={'SHOPIFY_STORE':'shop','SHOPIFY_CLIENT_ID':'id','SHOPIFY_CLIENT_SECRET':'secret'}
+        with patch.dict('os.environ',env),patch.object(manager,'wake'):
+            manager.start('dry',1,'123','Hespéride')
+        manager.claim()
+        def product(id,vendor):
+            p=self.product();p.update(id=id,vendor=vendor)
+            return p
+        other=product('other','atmosphera');chosen=product('chosen','Hesperide')
+        shop=Mock();shop.call.side_effect=[
+            {'products':{'nodes':[other],'pageInfo':{'hasNextPage':True,'endCursor':'page1'}}},
+            {'products':{'nodes':[chosen],'pageInfo':{'hasNextPage':False,'endCursor':'page2'}}}]
+        with patch.object(jobs,'Shopify',return_value=shop),patch.object(jobs,'candidate',return_value=True) as eligible,patch.object(manager,'process',return_value='PLANNED') as process:
+            manager.execute(store.read()[0])
+        eligible.assert_called_once_with(chosen)
+        self.assertEqual(store.state['items'][0]['id'],'chosen')
+        self.assertEqual(len(store.state['items']),1)
+        self.assertEqual(process.call_args.args[2]['vendor'],'Hesperide')
+        self.assertEqual(store.state['status'],'success')
+        self.assertIn('collection_id:123',shop.call.call_args.args[1]['query'])
+    def test_changed_brand_is_rejected_before_supplier_or_shopify_writes(self):
+        item=self.item();item.pop('attempted');item.pop('urls')
+        product=self.product();product['vendor']='atmosphera'
+        shop=Mock();shop.product.return_value=product
+        with patch.object(jobs,'discover') as discover:
+            with self.assertRaisesRegex(ValueError,'Брандът'):
+                jobs.ImageJobs(State()).process(shop,{'mode':'real','vendor':'Hesperide'},item,0)
+        discover.assert_not_called();shop.call.assert_not_called()
+    def test_vendor_choices_load_all_pages_and_reject_repeated_cursor(self):
+        shop=Mock();shop.call.side_effect=[
+            {'productVendors':{'nodes':['Hesperide','atmosphera'],'pageInfo':{'hasNextPage':True,'endCursor':'next'}}},
+            {'productVendors':{'nodes':['5five','Hesperide',''],'pageInfo':{'hasNextPage':False,'endCursor':'end'}}}]
+        with patch.object(jobs,'Shopify',return_value=shop):
+            self.assertEqual(jobs.ImageJobs(State()).vendors(),['5five','atmosphera','Hesperide'])
+        self.assertEqual(shop.call.call_args.args[1],{'cursor':'next'})
+        shop.call.side_effect=None
+        shop.call.return_value={'productVendors':{'nodes':[],'pageInfo':{'hasNextPage':True,'endCursor':'same'}}}
+        with patch.object(jobs,'Shopify',return_value=shop):
+            with self.assertRaisesRegex(RuntimeError,'пагинация'):jobs.ImageJobs(State()).vendors()
     def test_resume_does_not_repeat_ambiguous_mutation(self):
         item=self.item();item['attempted_at']=0
         runner=jobs.ImageJobs(State());shop=Mock();shop.product.return_value=self.product()
