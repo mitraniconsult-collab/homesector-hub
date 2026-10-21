@@ -7,6 +7,7 @@ pages and per-product Greek categories; absent files are treated as empty gates.
 import hashlib
 import json
 import os
+from collections import Counter
 from pathlib import Path
 
 from .batch_job import post_graphql
@@ -83,6 +84,9 @@ def finalize(journal, root, store=None, token=None):
     xml, report = create_preview(greek_products, categories, urls)
     report["source_products"] = meta["products"]
     report["greek_published_products"] = len(greek_products)
+    report["top_source_product_types"] = Counter(
+        str(p.get("productType") or "").strip() for p in greek_products
+    ).most_common(50)
     report["source_complete"] = True
     report["sha256"] = hashlib.sha256(xml).hexdigest()
     if report["xml_items"]:
