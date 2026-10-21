@@ -62,6 +62,26 @@ TAXONOMY_TO_FAVI_GR = {
         "Κήπος > Τραπέζια κήπου", "https://favi.gr/proionta/kathgoria/trapezia-kipou"),
     "gid://shopify/TaxonomyCategory/fr-15-6-3": (
         "Κήπος > Τραπέζια κήπου", "https://favi.gr/proionta/kathgoria/trapezia-kipou"),
+    "gid://shopify/TaxonomyCategory/hg-3-67": (
+        "Διακοσμητικά βάζα", "https://favi.gr/proionta/kathgoria/vaza"),
+    "gid://shopify/TaxonomyCategory/hg-3-2": (
+        "Τεχνητά διακοσμητικά φυτά", "https://favi.gr/proionta/kathgoria/tehnita-diakosmitika-fyta"),
+    "gid://shopify/TaxonomyCategory/hg-13-5-1": (
+        "Επιτραπέζια φωτιστικά", "https://favi.gr/proionta/kathgoria/epitrapezia-fwtistika"),
+    "gid://shopify/TaxonomyCategory/hg-13-9-5": (
+        "Κρεμαστά φωτιστικά", "https://favi.gr/proionta/kathgoria/kremasta-fwtistika"),
+    "gid://shopify/TaxonomyCategory/hg-3-74-1-1": (
+        "Κουρτίνες", "https://favi.gr/proionta/kathgoria/kourtines"),
+    "gid://shopify/TaxonomyCategory/fr-15-4-2": (
+        "Καρέκλες κήπου", "https://favi.gr/proionta/kathgoria/karekles-kipou"),
+    "gid://shopify/TaxonomyCategory/hg-3-52": (
+        "Κορνίζες", "https://favi.gr/proionta/kathgoria/kornizes"),
+    "gid://shopify/TaxonomyCategory/fr-7-9": (
+        "Καρέκλες τραπεζαρίας", "https://favi.gr/proionta/kathgoria/karekles-trapezarias"),
+    "gid://shopify/TaxonomyCategory/hg-13-5-3": (
+        "Φωτιστικά δαπέδου", "https://favi.gr/proionta/kathgoria/fwtistika-dapedou"),
+    "gid://shopify/TaxonomyCategory/hg-1-15": (
+        "Δοχεία σαπουνιού", "https://favi.gr/proionta/kathgoria/doheia-sapouniou"),
 }
 
 # Confirmed source category errors. Exclude only these product IDs from the
