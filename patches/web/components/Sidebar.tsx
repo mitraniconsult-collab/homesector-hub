@@ -17,6 +17,6 @@ export default function Sidebar() {
   return <aside className="sidebar">
     <div className="logo"><b>HS</b><span>Operations Hub</span></div>
     <nav>{items.map(([href,label]) => <Link key={href} href={href} className={pathname === href ? "active" : ""}>{label}</Link>)}</nav>
-    <div className="sidebarFooter"><span className="dot online"/> Internal workspace</div>
+    <div className="sidebarFooter"><form action="/api/auth/logout" method="post" style={{marginBottom: 16}}><button className="btn secondary" type="submit">Изход</button></form><span className="dot online"/> Internal workspace</div>
   </aside>;
 }
