@@ -44,6 +44,24 @@ TAXONOMY_TO_FAVI_GR = {
         "https://favi.gr/proionta/kathgoria/koutia-apothikeusis-kai-organwsis/kalathia-apothikefsis"),
     "gid://shopify/TaxonomyCategory/fr-4-5": (
         "Συρταριέρες", "https://favi.gr/proionta/kathgoria/syrtarieres"),
+    "gid://shopify/TaxonomyCategory/fr-24-1-1": (
+        "Τραπεζάκια σαλονιού", "https://favi.gr/proionta/kathgoria/trapezakia-saloniou"),
+    "gid://shopify/TaxonomyCategory/fr-24-4": (
+        "Τραπέζια τραπεζαρίας", "https://favi.gr/proionta/kathgoria/trapezia-trapezarias"),
+    "gid://shopify/TaxonomyCategory/fr-24-6": (
+        "Κομοδίνα υπνοδωματίου", "https://favi.gr/proionta/kathgoria/komodina-upnodwmatiou"),
+    "gid://shopify/TaxonomyCategory/hg-1-2": (
+        "Χαλάκια μπάνιου", "https://favi.gr/proionta/kathgoria/halakia-mpaniou"),
+    "gid://shopify/TaxonomyCategory/hg-10-9-4-2": (
+        "Απλώστρες", "https://favi.gr/proionta/kathgoria/aplwstres"),
+    "gid://shopify/TaxonomyCategory/hg-3-40-2": (
+        "Κεριά", "https://favi.gr/proionta/kathgoria/keria"),
+    "gid://shopify/TaxonomyCategory/hg-11-10-7-8": (
+        "Πιάτα σερβιρίσματος", "https://favi.gr/proionta/kathgoria/piata-servirismatos"),
+    "gid://shopify/TaxonomyCategory/fr-15-6-12": (
+        "Κήπος > Τραπέζια κήπου", "https://favi.gr/proionta/kathgoria/trapezia-kipou"),
+    "gid://shopify/TaxonomyCategory/fr-15-6-3": (
+        "Κήπος > Τραπέζια κήπου", "https://favi.gr/proionta/kathgoria/trapezia-kipou"),
 }
 
 
