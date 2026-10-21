@@ -54,6 +54,20 @@ def run():
         if os.getenv("FEED_GOOGLE_SCHEDULED_ENABLED") == "yes":
             if os.getenv("FEED_GOOGLE_COMPARISON_PUBLISH") != "yes":
                 raise RuntimeError("Scheduled publication requires comparison publication enabled")
+            if os.getenv("FEED_FAVI_GR_CORRECT_KNOWN_CATEGORY") == "yes" and not _stop:
+                # One-off exact variant correction before the normal schedules.
+                # The module pins the old SHA, audits both snapshots and uses
+                # the Blob ETag for its atomic pointer update.
+                from .favi_gr_sanitize import (
+                    EXPECTED_CURRENT_SHA256, correct_current_preview,
+                )
+                try:
+                    correction = correct_current_preview(EXPECTED_CURRENT_SHA256, apply=True)
+                    print("[favi-gr-correction] " + json.dumps(correction, sort_keys=True), flush=True)
+                except Exception as exc:
+                    # Never let an optional preview correction stop Google BG.
+                    print("[favi-gr-correction] FAILED type=" + type(exc).__name__
+                          + " reason=" + str(exc)[:100], flush=True)
             from .scheduled_google import run as run_scheduled
             run_scheduled(mount, should_stop=lambda: _stop)
             return
