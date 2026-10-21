@@ -13,6 +13,7 @@ from pathlib import Path
 from .batch_job import post_graphql
 from .durable_journal import DurableJournal
 from .favi_gr_preview import create_preview
+from .favi_gr_delivery import publish_preview
 from .favi_gr_taxonomy import categories_for_products
 from .favi_gr_urls import verify_market_urls
 from .markets_catalog import catalog_query, read_remaining_variants
@@ -117,6 +118,9 @@ def finalize(journal, root, store=None, token=None):
             os.fsync(fh.fileno())
         os.replace(temporary, folder / name)
     print("[favi-gr-scan] " + json.dumps(report, sort_keys=True), flush=True)
+    if os.getenv("FEED_FAVI_GR_PREVIEW_PUBLISH") == "yes":
+        receipt = publish_preview(root)
+        print("[favi-gr-preview] " + json.dumps(receipt, sort_keys=True), flush=True)
     return report
 
 
