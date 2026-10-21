@@ -111,7 +111,16 @@ def run(mount, should_stop):
             if os.getenv('FEED_FAVI_GR_SCAN') == 'yes' and not should_stop():
                 try:
                     from .scheduled_favi_gr import tick as tick_gr
-                    gr = tick_gr(mount, should_stop=should_stop)
+                    bg_state = json.loads(
+                        (Path(mount) / 'google-bg-schedule.json').read_text())
+                    now = time.time()
+                    due = [value for value in (
+                        bg_state.get('next_run_at'), bg_state.get('retry_at'))
+                        if isinstance(value, (int, float)) and value > now]
+                    # Reserve two minutes to return to the BG schedule. A GR
+                    # stage yields and persists its completed batches by then.
+                    deadline = min(due) - 120 if due else now
+                    gr = tick_gr(mount, should_stop=should_stop, deadline=deadline)
                     print('[favi-gr-scan] ' + json.dumps(gr, sort_keys=True), flush=True)
                     if gr.get('status') == 'incomplete':
                         continue
