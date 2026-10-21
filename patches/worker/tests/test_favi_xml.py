@@ -55,3 +55,28 @@ def test_color_variants_share_group_but_keep_unique_offer_ids():
 
 def test_favi_rejects_ungrouped_variant():
     assert "missing_or_invalid_favi_group_id" in validate({**BASE, "item_group_id": None}, "BG")
+
+
+def test_shopify_color_and_stock_normalize_to_one_offer_per_variant():
+    from feeds.markets_normalize import normalize_market
+
+    product = {
+        "id": "gid://shopify/Product/12", "title": "Стол Cleon",
+        "handle": "stol-cleon", "status": "ACTIVE", "published_BG": True,
+        "descriptionHtml": "Трапезен стол", "vendor": "Atmosphera",
+        "featuredImage": {"url": "https://cdn.shopify.com/cleon.jpg"},
+        "variantsCount": {"count": 2}, "variants": {"nodes": []},
+    }
+    for variant_id, color, quantity in ((17, "Кафяв", 5), (18, "Бежов", 0)):
+        product["variants"]["nodes"].append({
+            "id": f"gid://shopify/ProductVariant/{variant_id}",
+            "displayName": f"Стол Cleon - {color}",
+            "selectedOptions": [{"name": "Цвят", "value": color}],
+            "inventoryQuantity": quantity, "inventoryPolicy": "CONTINUE",
+            "price_BG": {"price": {"amount": "99.00", "currencyCode": "EUR"}},
+        })
+    rows = normalize_market(product, "BG")
+    assert len(rows) == 2  # five units in stock do not create five offers
+    assert {row["item_group_id"] for row in rows} == {"shopifyp12"}
+    assert {row["color"] for row in rows} == {"Кафяв", "Бежов"}
+    assert all(row["availability"] == "in_stock" for row in rows)
