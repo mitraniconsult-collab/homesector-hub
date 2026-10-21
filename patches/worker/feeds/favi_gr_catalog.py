@@ -99,8 +99,7 @@ def finalize(journal, root, store=None, token=None):
         if not shop.endswith(".myshopify.com") or "/" in shop:
             raise ValueError("Invalid Shopify hostname for GR collection paths")
         collection_urls, collection_check = verify_collection_urls(
-            missing, set(), shop, token or get_admin_token(shop),
-            translated_map=translated_map)
+            missing, set(), shop, token or get_admin_token(shop))
     else:
         collection_urls, collection_check = {}, {"checked": 0, "verified": 0}
     for product in greek_products:
