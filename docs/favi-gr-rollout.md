@@ -22,10 +22,17 @@ landing-page product IDs, and Shopify product/variant translations. It returns p
 Google RSS XML plus exclusion counts. Color variants keep unique IDs and share the
 Shopify parent group ID. Zero-stock CONTINUE remains included.
 
-The module currently has **no full GR source-catalog job, no mounted XML publication,
-and no public FAVI GR URL**. Never describe the private helper as a submitted feed.
-Next work: restartable full GR catalog journal, verified Greek product URL checks,
-category coverage audit, destination acceptance and a stable hosted preview URL.
+A restartable full GR source-catalog scanner now exists at `feeds.favi_gr_catalog`.
+It writes private XML and an exclusion report on the confirmed durable mount. It
+can run in bounded batches beside the BG schedule with `FEED_FAVI_GR_SCAN=yes`,
+but this flag is not enabled on the live worker. Verified input files on the mount
+are `favi-gr-verified-categories.json` (product GID to `{market: GR, verified:
+true, path: Greek category}`) and `favi-gr-verified-url-ids.json` (list of
+verified product GIDs). Missing files deliberately yield exclusions, not
+invented categories or links. There is **no public FAVI GR URL or submission**.
+Next work: execute the complete GR scan, verify Greek product URL and category
+coverage, correct reversed source color translations, and host a reviewed XML
+for FAVI Greece's separate account acceptance.
 
 ## Verification
 
