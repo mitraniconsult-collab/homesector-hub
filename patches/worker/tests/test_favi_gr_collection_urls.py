@@ -21,3 +21,18 @@ def test_collection_fallback_accepts_only_exact_greek_product_path():
     assert report["verified"] == 1
     with patch.object(urls.requests, "get", return_value=wrong):
         assert urls._check(product, ["storage"]) is None
+
+
+def test_category_collection_after_brand_memberships_is_considered():
+    product = {"id": "gid://shopify/Product/1", "handle": "edie-zhakard"}
+    collections = [{"handle": h} for h in (
+        "atmosphera", "allproducts", "bedroom", "new-arrivals",
+        "clearance", "текстил-за-спалня-category")]
+    response = {"nodes": [{"id": product["id"], "handle": product["handle"],
+                           "collections": {"nodes": collections,
+                                           "pageInfo": {"hasNextPage": False}}}]}
+    with patch.object(urls, "post_graphql", return_value=response) as query:
+        result = urls._candidates([product], {product["id"]},
+                                  "example.myshopify.com", "token")
+    assert result[product["id"]][0] == "текстил-за-спалня-category"
+    assert "collections(first: 20)" in query.call_args.args[2]
