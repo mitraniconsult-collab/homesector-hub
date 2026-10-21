@@ -4,10 +4,30 @@ Returns actual Shopify product translations only. Missing keys remain missing an
 are rejected by channel preflight. No translation generation or product writes.
 """
 import os
+import time
 from .shopify_auth import get_admin_token
 
 LOCALES = {"RO": "ro", "GR": "el", "HU": "hu"}
 BATCH_SIZE = 5
+
+
+def _post_with_throttle(url, token, query, variables):
+    from .markets_catalog import shopify_post
+    for attempt in range(10):
+        payload = shopify_post(url, token, {"query": query, "variables": variables})
+        errors = payload.get("errors") or []
+        codes = {str((error.get("extensions") or {}).get("code", "")).upper()
+                 for error in errors if isinstance(error, dict)}
+        if errors and codes == {"THROTTLED"} and attempt < 9:
+            throttle = ((payload.get("extensions") or {}).get("cost") or {}).get("throttleStatus") or {}
+            requested = ((payload.get("extensions") or {}).get("cost") or {}).get("requestedQueryCost", 500)
+            delay = (requested - throttle.get("currentlyAvailable", 0)) / max(1, throttle.get("restoreRate", 50))
+            time.sleep(min(60, max(1, delay + .25)))
+            continue
+        if errors or not payload.get("data"):
+            raise RuntimeError("Shopify translations query failed codes=" + ",".join(sorted(codes or {"EMPTY"})))
+        return payload["data"]
+    raise RuntimeError("Shopify translations retry limit reached")
 
 def translations_query(batch_size):
     if not 1 <= batch_size <= BATCH_SIZE:
@@ -23,7 +43,6 @@ def translations_query(batch_size):
     return "query FeedProductTranslations(" + vars_decl + ") { " + " ".join(parts) + " }"
 
 def fetch_translations(product_ids, store=None, token=None, version="2026-07"):
-    from .markets_catalog import shopify_post
     store = (store or os.environ.get("SHOPIFY_STORE", "")).strip()
     if not store.endswith(".myshopify.com") or "/" in store:
         raise ValueError("Invalid Shopify store")
@@ -38,12 +57,9 @@ def fetch_translations(product_ids, store=None, token=None, version="2026-07"):
     for start in range(0, len(ids), BATCH_SIZE):
         batch = ids[start:start + BATCH_SIZE]
         values = {f"p{i}": product_id for i, product_id in enumerate(batch)}
-        data = shopify_post(url, token, {
-            "query": translations_query(len(batch)), "variables": values})
-        if data.get("errors") or not data.get("data"):
-            raise RuntimeError("Shopify translations query failed")
+        data = _post_with_throttle(url, token, translations_query(len(batch)), values)
         for i, product_id in enumerate(batch):
-            product = data["data"].get(f"p{i}")
+            product = data.get(f"p{i}")
             if not product or product.get("id") != product_id:
                 raise RuntimeError("Shopify translations response incomplete")
             result[product_id] = {
@@ -63,7 +79,6 @@ def fetch_variant_translations(variant_ids, market, store=None, token=None,
         raise ValueError("Expected Shopify ProductVariant IDs")
     if not ids:
         return {}
-    from .markets_catalog import shopify_post
     store = (store or os.environ.get("SHOPIFY_STORE", "")).strip()
     if not store.endswith(".myshopify.com") or "/" in store:
         raise ValueError("Invalid Shopify store")
@@ -79,11 +94,9 @@ def fetch_variant_translations(variant_ids, market, store=None, token=None,
         query = f"query FeedVariantTranslations({vars_decl}) {{ {fields} }}"
         values = {f"v{i}": gid for i, gid in enumerate(batch)}
         # shopify_post accepts URL, token, payload; never log returned copy.
-        data = shopify_post(url, token, {"query": query, "variables": values})
-        if data.get("errors") or not data.get("data"):
-            raise RuntimeError("Shopify variant translations query failed")
+        data = _post_with_throttle(url, token, query, values)
         for i, gid in enumerate(batch):
-            variant = data["data"].get(f"v{i}")
+            variant = data.get(f"v{i}")
             if not variant or variant.get("id") != gid:
                 raise RuntimeError("Shopify variant translation response incomplete")
             result[gid] = variant.get("translations") or []
