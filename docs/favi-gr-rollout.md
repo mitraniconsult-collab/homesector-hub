@@ -4,22 +4,24 @@
 
 - XML: https://hub.homesector.bg/feeds/favi/GR-preview.xml
 - Diagnostics: https://hub.homesector.bg/feeds/favi/GR-preview-report.json
-- Hub dashboard: https://hub.homesector.bg/feeds
-- Verified public HTTP 200: 246 XML items, 246 distinct variant IDs, 118 Shopify parent groups, and 246 EUR prices. SHA-256: aa2f164cc713c6ddf0714e4de451c65f882f8dd16950a13f36b99be7754e88b1.
-- The preview is partial and noindex. No FAVI destination subscription was changed; approved_by_favi remains false.
+- Protected Hub dashboard: https://hub.homesector.bg/feeds
+- Verified public HTTP 200 after the exact-ID correction: 667 XML items, 667 distinct variant IDs, EUR prices, SHA-256 `1144ec60924487be25d0204f711226c7c9601f9fb4c19b8bd043d994977b11a3`.
+- This is a partial, noindex preview. `approved_by_favi=false`; no FAVI destination subscription was changed.
 
-The completed source snapshot contains 19,303 Shopify products, of which 8,444 are active and published to GR with 12,556 source variants. Sixteen reviewed Shopify taxonomy mappings cover 1,087 products. Greek title and description translations exist for 393 of these mapped products. Direct Greek URLs verified for 191 mapped products; an additional 107 collection-context product URLs verified through actual Shopify collection membership, totaling 298 distinct verified product URLs. These gates yield 246 eligible variants. Exclusion counters in the report overlap and are variant-level; do not sum them as distinct products.
+The fresh Shopify snapshot at 2026-10-21 18:13 UTC contains 19,303 products, of which 9,029 are active and published to Greece with 13,141 source variants. Twenty-five reviewed exact taxonomy mappings cover 2,493 products. Greek title and description exist for 1,626 mapped products. Direct Greek URLs verified for 401 mapped products and collection-context URLs for another 225, totaling 626 distinct verified product URLs. These gates yielded 668 variants at 18:35 UTC. A one-off correction at 18:42 UTC removed the single miscategorized coffee grinder from the public preview, leaving 667. The report's source coverage counters still describe the 18:13 snapshot; its `manual_correction` records the exact removal.
 
-The URL verifier tries the Shopify product handle and its Greek translation, requiring a 200 HTML page at the exact expected path on homesector.gr. Collection links are accepted only when Shopify lists the product in that collection, and the final Greek page passes the same host, status, path and product-handle checks. Collection checks are bounded to two specific paths and a five-second network timeout. The public pointer changes only after XML audit, unique-ID check, immutable Blob upload and hash verification, and now rejects a candidate with fewer items than the current preview.
+The Shopify Product categories for coffee grinder `8730408747275` and jar tongs `10980173709579` have since been fixed to Coffee Grinders and Tongs, respectively. The next fresh scan will pick them up. The correction is pinned to the old preview hash and cannot remove a row from later generations.
 
-Color variants keep separate variant IDs and share g:item_group_id for the Shopify parent. Zero-quantity CONTINUE remains eligible. Greek copy and colors are sourced from Shopify; known reversed color translations stay excluded.
+The URL verifier requires a 200 HTML page at the exact expected Greek product path and checks Shopify collection membership for collection-context links. The next staging scan will report distinct `http_404`, `http_429`, etc. rather than the previous combined `non_200` counter. It will not relax admission. The staged generation now checkpoints completed translation and URL batches and yields before the Bulgarian Google cycle; partial XML is never published. The public pointer changes only after complete XML audit, unique-ID check, immutable upload, hash verification and count guard.
+
+Color variants retain distinct variant IDs and share `g:item_group_id` for their Shopify parent. Zero-quantity variants with CONTINUE remain eligible. Greek copy and variant colors are sourced from Shopify; known reversed color translations remain excluded.
 
 ## Remaining work
 
-1. Expand reviewed FAVI Greece category mappings. The current 1,087 mapped products cover only part of 8,444 GR active and published products. Shopify taxonomy is present on 3,933; 4,511 lack a product category, so source catalog categorization is a separate blocker.
-2. Fix Greek storefront address coverage. Only 298 of 1,087 mapped products have a verified GR page. Direct checks often return non-200; add or repair market routing and use verified URLs only.
-3. Complete Greek product and variant translations, especially copy and color. Only 393 mapped products have both Greek title and description. Inspect source errors rather than relaxing locale checks. Sampled Greek pages also showed Bulgarian navigation.
-4. Replace the completed source journal with recurring fresh catalog generations and an age guard. A worker restart currently recalculates from the same snapshot rather than newly created Shopify products.
-5. Verify separate FAVI Greece registration, submit a complete reviewed feed, inspect their import feedback, and then switch the destination subscription. Petya's 2026-09-25 email mentioned a separate country registration and Greek trial; acceptance remains unverified.
+1. Expand reviewed FAVI Greek taxonomy mappings. The 2,493 mapped products cover only part of 9,029 active Greek products. Do not infer a FAVI category from unverified names.
+2. Diagnose the 2,092 direct URL checks that returned non-200 in this snapshot, using the exact HTTP status breakdown from the next scan. Fix Greek storefront routing or transient failures while keeping verified live URLs as the gate.
+3. Complete Greek title, description and variant-color translations. Of the 2,493 mapped products, only 1,626 have both Greek title and description; draft review batches for Food Storage (20) and Outdoor Dining Tables (10) have not been written to Shopify.
+4. Run the next fresh, resumable Greek scan to reflect corrected Shopify categories and new diagnostics; review coverage and XML audit before expanding the public preview.
+5. Confirm a separate FAVI Greece registration, submit a complete reviewed feed, inspect import feedback and then switch the destination subscription. Petya's 2026-09-25 email mentioned a separate country registration and Greek trial; acceptance remains unverified.
 
-The Bulgarian Google feed has 11,870 variant rows in its latest published generation. Comparing that with 246 Greek FAVI XML rows shows the scope gap, although the two channels apply different requirements. The Greek source has 12,556 variants, so source volume itself is not the limiting factor. The public Greek URL is for human review, not the completed FAVI Greece catalog.
+The Bulgarian Google feed published 12,046 variant rows at 18:41 UTC. Its comparison with Feedhub's 11,169 rows has 10,581 matched IDs, 1,465 only on our side and 588 only on Feedhub's. These are different channels with different admission rules, so the 667-vs-12,046 gap is a coverage target, not proof that Shopify lacks Greek variants.
