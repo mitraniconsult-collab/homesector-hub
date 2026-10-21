@@ -31,5 +31,5 @@ category coverage audit, destination acceptance and a stable hosted preview URL.
 
 Three Greek FAVI candidate regression checks passed locally with Python: grouped
 variants and CONTINUE, reversed Greek color hold, and URL/category gates. Existing
-three international market-row and nine FAVI serializer checks also passed. A generated\nGreek RSS candidate passed the common XML audit. The changes are on
-`feature/feeds-other-channels`; not deployed or submitted to FAVI Greece.
+three international market-row and nine FAVI serializer checks also passed. A generated
+Greek RSS candidate passed the common XML audit. The changes are deployed on the Render worker from `feature/feeds-other-channels` (commit `efea50b`). No full GR source job or public FAVI URL exists yet, and no feed was submitted to FAVI Greece.
