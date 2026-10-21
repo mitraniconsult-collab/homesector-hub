@@ -38,11 +38,14 @@ def _check_handle(handle):
 
 def check_one(product, translated_handle=""):
     source_handle = str(product.get("handle") or "")
+    source = _check_handle(source_handle)
+    if source[0]:
+        return source
     if translated_handle and translated_handle != source_handle:
-        result = _check_handle(translated_handle)
-        if result[0]:
-            return result
-    return _check_handle(source_handle)
+        translated = _check_handle(translated_handle)
+        if translated[0]:
+            return translated
+    return source
 
 
 def verify_one(product):
