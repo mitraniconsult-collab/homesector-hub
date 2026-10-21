@@ -1,7 +1,7 @@
 """Read-only verification of public Greek product landing pages."""
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 import requests
 
 
@@ -19,7 +19,7 @@ def check_one(product):
             return False, "non_200"
         if final.scheme != "https" or final.hostname != "homesector.gr":
             return False, "wrong_domain"
-        if final.path.rstrip("/") != expected:
+        if unquote(final.path).rstrip("/") != expected:
             return False, "redirected_path"
         if "text/html" not in response.headers.get("Content-Type", "").lower():
             return False, "not_html"
