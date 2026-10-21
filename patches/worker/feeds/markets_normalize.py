@@ -41,7 +41,9 @@ def normalize_market(product, country):
                 (variant.get("displayName") or product.get("title") or "").removesuffix(" - Default Title")
                 if country == "BG" else product.get("title")),
             "description": plain_text(product.get("descriptionHtml")),
-            "link": "https://" + MARKETS[country]["domain"] + "/products/" + handle
+            "link": (product.get("verified_market_url_GR")
+                     if country == "GR" and product.get("verified_market_url_GR")
+                     else "https://" + MARKETS[country]["domain"] + "/products/" + handle)
                     + "?variant=" + str(variant.get("id", "").rsplit("/", 1)[-1]),
             "image_link": image, "brand": product.get("vendor"),
             "product_type": product.get("productType"),
