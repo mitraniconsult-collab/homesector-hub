@@ -47,29 +47,31 @@ def _candidates(products, missing_ids, store, token):
     return result
 
 
-def _check(product, collections):
-    handle = str(product.get("handle") or "")
-    if not handle or "/" in handle or "?" in handle or "#" in handle:
-        return None
-    for collection in collections:
-        path = "/collections/" + quote(collection, safe="-") + "/products/" + quote(handle, safe="-")
-        try:
-            response = requests.get("https://homesector.gr" + path, timeout=5,
-                                    allow_redirects=True,
-                                    headers={"User-Agent": "HomesectorFeedVerifier/1.0"})
-            final = urlparse(response.url)
-            if (response.status_code == 200 and final.scheme == "https"
-                    and final.hostname == "homesector.gr"
-                    and unquote(final.path).rstrip("/") == unquote(path)
-                    and "text/html" in response.headers.get("Content-Type", "").lower()
-                    and handle in response.text):
-                return "https://homesector.gr" + path
-        except requests.RequestException:
+def _check(product, collections, translated_handle=""):
+    handles = dict.fromkeys((translated_handle, str(product.get("handle") or "")))
+    for handle in handles:
+        if not handle or "/" in handle or "?" in handle or "#" in handle:
             continue
+        for collection in collections:
+            path = "/collections/" + quote(collection, safe="-") + "/products/" + quote(handle, safe="-")
+            try:
+                response = requests.get("https://homesector.gr" + path, timeout=5,
+                                        allow_redirects=True,
+                                        headers={"User-Agent": "HomesectorFeedVerifier/1.0"})
+                final = urlparse(response.url)
+                if (response.status_code == 200 and final.scheme == "https"
+                        and final.hostname == "homesector.gr"
+                        and unquote(final.path).rstrip("/") == unquote(path)
+                        and "text/html" in response.headers.get("Content-Type", "").lower()
+                        and handle in response.text):
+                    return "https://homesector.gr" + path
+            except requests.RequestException:
+                continue
     return None
 
 
-def verify_collection_urls(products, already_verified, store, token, workers=16):
+def verify_collection_urls(products, already_verified, store, token, workers=16,
+                           translated_map=None):
     if not 1 <= workers <= 16:
         raise ValueError("Invalid URL verification concurrency")
     missing = {p["id"]: p for p in products if p.get("id") not in already_verified}
@@ -78,11 +80,17 @@ def verify_collection_urls(products, already_verified, store, token, workers=16)
     candidates = _candidates(products, set(missing), store, token)
     verified = {}
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = {pool.submit(_check, missing[pid], handles): pid
-                   for pid, handles in candidates.items() if handles}
+        from .favi_gr_urls import _translated_handle
+        futures = {
+            pool.submit(
+                _check, missing[pid], handles,
+                _translated_handle((translated_map or {}).get(pid, {}).get("GR", []))
+            ): pid for pid, handles in candidates.items() if handles
+        }
         for future in as_completed(futures):
             path = future.result()
             if path:
                 verified[futures[future]] = path
     return verified, {"checked": len(futures), "verified": len(verified),
                       "without_collection": len(missing) - len(futures)}
+
