@@ -46,9 +46,10 @@ def handle_from_link(link):
     parts = urlsplit(str(link)).path.split("/")
     return parts[2] if len(parts) == 3 and parts[1] == "products" else None
 
-def create_preview(mount):
+def create_preview(mount, source_folder=None):
     root = Path(mount)
-    m = json.loads((root / "google-bg/manifest.json").read_text())
+    source_folder = Path(source_folder) if source_folder is not None else root / "google-bg"
+    m = json.loads((source_folder / "manifest.json").read_text())
     c = json.loads((root / "favi-shopify-categories/manifest.json").read_text())
     if not m["finished"] or not c["finished"]:
         raise RuntimeError("Completed journals required for FAVI preview")
@@ -69,9 +70,9 @@ def create_preview(mount):
                 historic[gid] = oldid
     prepared, causes, per_path = [], Counter(), Counter()
     new_ids, old_ids = 0, 0
-    records_path = root / "google-bg/availability-corrected-records.jsonl"
+    records_path = source_folder / "availability-corrected-records.jsonl"
     if not records_path.exists():
-        records_path = root / "google-bg/records.jsonl"
+        records_path = source_folder / "records.jsonl"
     with records_path.open(encoding="utf-8") as f:
         for line in f:
             row = json.loads(line)
@@ -81,6 +82,9 @@ def create_preview(mount):
             favi_category = CATEGORY_MAP_BG.get(taxonomy)
             if not favi_category:
                 causes["no_checked_category_mapping"] += 1
+                continue
+            if not row.get("item_group_id"):
+                causes["missing_shopify_parent_group"] += 1
                 continue
             if row.get("id") in historic:
                 row["id"] = historic[row["id"]]
@@ -93,9 +97,6 @@ def create_preview(mount):
             else:
                 row["id"] = variant_feed_id(row["id"])
                 new_ids += 1
-            if not row.get("item_group_id"):
-                causes["missing_shopify_parent_group"] += 1
-                continue
             row["product_type"] = favi_category
             row["category_verified_for_market"] = True
             prepared.append(row)
