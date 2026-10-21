@@ -20,9 +20,11 @@ def _check_handle(handle):
         response = requests.get("https://homesector.gr/products/" + quote(handle, safe="-"),
                                 timeout=15, allow_redirects=True,
                                 headers={"User-Agent": "HomesectorFeedVerifier/1.0"})
-        final = urlparse(response.url)
         if response.status_code != 200:
-            return False, "non_200", None
+            # Keep the exact HTTP status in the aggregate report. A 404 needs
+            # storefront routing work, while a 429/5xx needs rate/edge work.
+            return False, f"http_{response.status_code}", None
+        final = urlparse(response.url)
         if final.scheme != "https" or final.hostname != "homesector.gr":
             return False, "wrong_domain", None
         if unquote(final.path).rstrip("/") != expected:
