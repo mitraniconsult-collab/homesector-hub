@@ -68,6 +68,18 @@ def tick(mount, should_stop=lambda: False, now=None):
             raise RuntimeError('Catalog empty, duplicate, or declined by more than 20 percent')
         # Missing descriptions stay visible; no quantity-zero CONTINUE filter.
         receipt = publish_comparison(root, source_folder=folder)
+        # FAVI stays private until its ID and category gates pass. A preview
+        # failure cannot stall an otherwise successful Google publication.
+        if os.getenv('FEED_FAVI_BG_PREVIEW') == 'yes':
+            try:
+                from .favi_bg_preview import create_preview
+                favi = create_preview(root, source_folder=folder)
+                print('[favi-preview] ' + json.dumps({
+                    'generation': generation, 'xml_items': favi['xml_items'],
+                    'blocked_missing_parent_group': favi['blocked_missing_parent_group'],
+                }, sort_keys=True), flush=True)
+            except Exception as exc:
+                print('[favi-preview] FAILED type=' + type(exc).__name__, flush=True)
         completed = time.time() if real_clock else now
         state.update(generation=None, last_generation=generation, last_success_at=completed,
                      next_run_at=completed + interval, last_items=receipt['items'],
