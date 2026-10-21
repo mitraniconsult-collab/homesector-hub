@@ -82,15 +82,8 @@ TAXONOMY_TO_FAVI_GR = {
         "Φωτιστικά δαπέδου", "https://favi.gr/proionta/kathgoria/fwtistika-dapedou"),
     "gid://shopify/TaxonomyCategory/hg-1-15": (
         "Δοχεία σαπουνιού", "https://favi.gr/proionta/kathgoria/doheia-sapouniou"),
-    "gid://shopify/TaxonomyCategory/hg-11-10-4-3": (
-        "Πιάτα σερβιρίσματος", "https://favi.gr/proionta/kathgoria/piata-servirismatos"),
     "gid://shopify/TaxonomyCategory/hg-3-4-2-3": (
         "Διακοσμητικοί πίνακες", "https://favi.gr/proionta/kathgoria/diakosmitikoi-pinakes"),
-    "gid://shopify/TaxonomyCategory/hg-3-30": (
-        "Διακοσμητικά", "https://favi.gr/proionta/kathgoria/diakosmitika"),
-    "gid://shopify/TaxonomyCategory/fr-14": (
-        "Υποπόδια και βοηθητικά σκαμπό",
-        "https://favi.gr/proionta/kathgoria/ypopodia-kai-voithitika-skampo"),
 }
 
 # Confirmed source category errors. Exclude only these product IDs from the
