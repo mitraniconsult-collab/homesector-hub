@@ -3,6 +3,7 @@
 Only a complete, recent generation can replace the partial preview pointer.
 The previous public preview and its source journal stay untouched on errors.
 """
+import hashlib
 import json
 import os
 import shutil
@@ -11,6 +12,18 @@ import uuid
 from pathlib import Path
 
 MAX_SCAN_AGE_SECONDS = 6 * 3600
+
+
+def _refresh_digest():
+    """A changed operator token requests one extra generation on this disk."""
+    token = os.getenv("FEED_FAVI_GR_REFRESH_TOKEN", "")
+    if not token:
+        return None
+    if not 16 <= len(token) <= 128 or any(
+            char not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
+            for char in token):
+        raise ValueError("Invalid one-off GR refresh token")
+    return hashlib.sha256(token.encode("ascii")).hexdigest()
 
 
 def save(path, state):
@@ -54,10 +67,24 @@ def tick(mount, should_stop=lambda: False, now=None, deadline=None):
         return {"status": "interrupted"}
     if clock < state.get("retry_at", 0):
         return {"status": "retry_wait", "retry_at": state["retry_at"]}
+    # The BG scheduler calls us only after its own tick. Do not consume a
+    # refresh token or create a GR journal when its next run is imminent.
+    if current() >= deadline:
+        return {"status": "yielded", "stage": "bg_deadline",
+                "generation": state.get("generation")}
+    digest = _refresh_digest()
+    force = bool(digest and digest != state.get("last_refresh_digest"))
     if not state.get("generation"):
-        if clock < state.get("next_run_at", 0):
+        if clock < state.get("next_run_at", 0) and not force:
             return {"status": "waiting", "next_run_at": state["next_run_at"]}
         state.update(generation=uuid.uuid4().hex, started_at=clock, retry_at=0)
+        if force:
+            state["last_refresh_digest"] = digest
+        save(state_path, state)
+    elif force:
+        # A running generation satisfies the request. Never launch a second
+        # generation merely because the environment changed mid-run.
+        state["last_refresh_digest"] = digest
         save(state_path, state)
     generation = state["generation"]
     if (not isinstance(generation, str) or len(generation) != 32
