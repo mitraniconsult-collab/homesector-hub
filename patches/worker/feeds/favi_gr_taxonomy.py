@@ -92,6 +92,8 @@ TAXONOMY_TO_FAVI_GR = {
         "Ξαπλώστρες κήπου", "https://favi.gr/proionta/kathgoria/xaplwstres-kipou"),
     "gid://shopify/TaxonomyCategory/hg-3-15": (
         "Μαξιλάρια για έπιπλα", "https://favi.gr/proionta/kathgoria/maxilaria-epiplwn"),
+    "gid://shopify/TaxonomyCategory/hg-3-4-2-3": (
+        "Διακοσμητικοί πίνακες", "https://favi.gr/proionta/kathgoria/diakosmitikoi-pinakes"),
 }
 
 # Confirmed source category errors. Exclude only these product IDs from the
