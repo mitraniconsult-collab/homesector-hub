@@ -28,3 +28,34 @@ def apply_verified_translations(row, translations, market, url_verified=False):
     # the market domain resolves to this product without verification.
     new_row["verified_market_url"] = bool(url_verified)
     return new_row
+
+
+# Common source color words catch obvious wrong option translations. The
+# Shopify variant (not another variant's label) is the sole source of color.
+_GR_BASIC_COLORS = {
+    "кафяв": "καφέ", "бежов": "μπεζ", "бял": "λευκό",
+    "черен": "μαύρο", "син": "μπλε", "зелен": "πράσινο",
+}
+
+def localize_variant_color(row, variant_translations, market):
+    output = dict(row)
+    option_index = row.get("color_option_index")
+    if not option_index:
+        output["verified_variant_color"] = True
+        return output
+    if market == "BG":
+        output["verified_variant_color"] = True
+        return output
+    values = {entry.get("key"): str(entry.get("value") or "").strip()
+              for entry in (variant_translations or []) if entry}
+    value = values.get("option" + str(option_index), "")
+    # Never send the Bulgarian source label to an international FAVI catalog.
+    output["color"] = None
+    expected = _GR_BASIC_COLORS.get(str(row.get("color") or "").casefold().strip()) if market == "GR" else None
+    if market == "GR" and value and any("\u0370" <= c <= "\u03ff" for c in value) \
+            and (not expected or value.casefold() == expected):
+        output["color"] = value
+        output["verified_variant_color"] = True
+    else:
+        output["verified_variant_color"] = False
+    return output
