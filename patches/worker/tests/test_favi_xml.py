@@ -80,3 +80,14 @@ def test_shopify_color_and_stock_normalize_to_one_offer_per_variant():
     assert {row["item_group_id"] for row in rows} == {"shopifyp12"}
     assert {row["color"] for row in rows} == {"Кафяв", "Бежов"}
     assert all(row["availability"] == "in_stock" for row in rows)
+
+
+def test_favi_google_rss_item_uses_plain_title_description_and_link():
+    xml, report = generate_favi([BASE], "BG")
+    item = ET.fromstring(xml).find("./channel/item")
+    assert report["items_exported"] == 1
+    assert item.findtext("title") == BASE["title"]
+    assert item.findtext("description") == BASE["description"]
+    assert item.findtext("link") == BASE["link"]
+    assert item.find("{http://base.google.com/ns/1.0}title") is None
+    assert item.find("{http://base.google.com/ns/1.0}id") is not None
