@@ -15,6 +15,7 @@ from .durable_journal import DurableJournal
 from .favi_gr_preview import create_preview
 from .favi_gr_delivery import publish_preview
 from .favi_gr_taxonomy import categories_for_products
+from .favi_gr_collection_urls import verify_collection_urls
 from .favi_gr_urls import verify_market_urls
 from .markets_catalog import catalog_query, read_remaining_variants
 from .shopify_auth import get_admin_token
@@ -87,7 +88,22 @@ def finalize(journal, root, store=None, token=None):
     categories = categories_for_products(greek_products, categories)
     auto_urls, url_check = verify_market_urls(greek_products, categories)
     print("[favi-gr-url] " + json.dumps(url_check, sort_keys=True), flush=True)
-    xml, report = create_preview(greek_products, categories, set(urls) | auto_urls)
+    missing = [p for p in greek_products if p["id"] in categories and p["id"] not in auto_urls]
+    if missing:
+        shop = store or os.getenv("SHOPIFY_STORE", "")
+        if not shop.endswith(".myshopify.com") or "/" in shop:
+            raise ValueError("Invalid Shopify hostname for GR collection paths")
+        collection_urls, collection_check = verify_collection_urls(
+            missing, set(), shop, token or get_admin_token(shop))
+    else:
+        collection_urls, collection_check = {}, {"checked": 0, "verified": 0}
+    for product in greek_products:
+        if product["id"] in collection_urls:
+            product["verified_market_url_GR"] = collection_urls[product["id"]]
+    print("[favi-gr-collection-url] " + json.dumps(collection_check, sort_keys=True), flush=True)
+    xml, report = create_preview(greek_products, categories,
+                                 set(urls) | auto_urls | set(collection_urls))
+    report["verified_collection_url_check"] = collection_check
     report["reviewed_category_products"] = len(categories)
     report["verified_url_check"] = url_check
     report["source_products"] = meta["products"]
