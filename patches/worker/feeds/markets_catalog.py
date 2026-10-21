@@ -73,6 +73,9 @@ def catalog_query(bg_only=False, gr_only=False):
     }
     """
 
+    if gr_only:
+        query = query.replace("products(first: 5,", "products(first: 25,")
+        query = query.replace("variants(first: 25)", "variants(first: 5)")
     if bg_only:
         query = query.replace("products(first: 5,", 'products(first: 25, query: "status:active",')
         query = query.replace("variants(first: 25)", "variants(first: 5)")
