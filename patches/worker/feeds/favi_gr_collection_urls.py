@@ -13,7 +13,7 @@ query FeedCollectionPaths($ids: [ID!]!) {
   nodes(ids: $ids) {
     ... on Product {
       id handle
-      collections(first: 20) { nodes { handle } pageInfo { hasNextPage } }
+      collections(first: 4) { nodes { handle } pageInfo { hasNextPage } }
     }
   }
 }
@@ -27,6 +27,8 @@ def _candidates(products, missing_ids, store, token):
     result = {}
     for start in range(0, len(ids), 10):
         nodes = post_graphql(url, token, QUERY, {"ids": ids[start:start + 10]})["nodes"]
+        if start % 100 == 0:
+            print(f"[favi-gr-collection-source] checked={start + len(nodes)} total={len(ids)}", flush=True)
         for node in nodes:
             if not node or node.get("id") not in selected:
                 continue
