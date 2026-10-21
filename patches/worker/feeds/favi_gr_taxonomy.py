@@ -13,6 +13,15 @@ TAXONOMY_TO_FAVI_GR = {
     "gid://shopify/TaxonomyCategory/fr-15-6-5": (
         "Κήπος > Τραπέζια κήπου",
         "https://favi.gr/proionta/kathgoria/trapezia-kipou"),
+    "gid://shopify/TaxonomyCategory/hg-10-9-16": (
+        "Πλυντήριο και σιδέρωμα > Καλάθια απλύτων",
+        "https://favi.gr/proionta/kathgoria/kalathia-aplutwn"),
+    "gid://shopify/TaxonomyCategory/hg-11-10-7-9": (
+        "Κουζίνα και τραπεζαρία > Δίσκοι σερβιρίσματος",
+        "https://favi.gr/proionta/kathgoria/diskoi-servirismatos"),
+    "gid://shopify/TaxonomyCategory/hg-11-8-21": (
+        "Κουζίνα και τραπεζαρία > Επιφάνειες κοπής",
+        "https://favi.gr/proionta/kathgoria/epifaneies-kopis"),
     "gid://shopify/TaxonomyCategory/hg-3-64": (
         "Διακοσμητικά μαξιλάρια και μαξιλαροθήκες > Διακοσμητικά μαξιλάρια",
         "https://favi.gr/proionta/kathgoria/maxilarakia-richtaria-kai-maxilarothikes/diakosmitika-maxilaria"),
