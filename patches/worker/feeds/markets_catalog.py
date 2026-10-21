@@ -33,15 +33,18 @@ def shopify_post(url, token, payload):
             time.sleep(min(30, 2 ** attempt))
     raise RuntimeError("Shopify retry limit reached")
 
-def catalog_query(bg_only=False):
+def catalog_query(bg_only=False, gr_only=False):
+    if bg_only and gr_only:
+        raise ValueError('Only one country filter is allowed')
+    countries = ('BG',) if bg_only else ('GR',) if gr_only else COUNTRIES
     publication = "\n".join(
         f"published_{country}: publishedInContext(context: {{country: {country}}})"
-        for country in (("BG",) if bg_only else COUNTRIES)
+        for country in countries
     )
     pricing = "\n".join(
         f"price_{country}: contextualPricing(context: {{country: {country}}}) "
         "{ price { amount currencyCode } }"
-        for country in (("BG",) if bg_only else COUNTRIES)
+        for country in countries
     )
     query = """
     query FeedMarkets($cursor: String) {
@@ -109,13 +112,16 @@ def read_markets_catalog(store=None, token=None, version="2026-07", max_pages=10
             raise RuntimeError("Missing pagination cursor")
     raise RuntimeError("Shopify catalog pagination limit reached")
 
-def read_remaining_variants(url, token, product_id, cursor, bg_only=False):
+def read_remaining_variants(url, token, product_id, cursor, bg_only=False, gr_only=False):
+    if bg_only and gr_only:
+        raise ValueError('Only one country filter is allowed')
+    countries = ('BG',) if bg_only else ('GR',) if gr_only else COUNTRIES
     """Page through every variant; fail rather than silently drop any."""
     if not cursor:
         raise RuntimeError("Missing variant cursor")
     pricing = "\n".join(
         f"price_{country}: contextualPricing(context: {{country: {country}}}) "
-        "{ price { amount currencyCode } }" for country in (("BG",) if bg_only else COUNTRIES)
+        "{ price { amount currencyCode } }" for country in countries
     )
     query = """
     query FeedVariants($productId: ID!, $cursor: String) {
