@@ -46,12 +46,14 @@ def catalog_query(bg_only=False, gr_only=False):
         "{ price { amount currencyCode } }"
         for country in countries
     )
+    taxonomy = "category { id fullName }" if gr_only else ""
     query = """
     query FeedMarkets($cursor: String) {
       products(first: 5, after: $cursor, sortKey: ID) {
         pageInfo { hasNextPage endCursor }
         nodes {
           id title handle descriptionHtml status vendor productType
+          """ + taxonomy + """
           variantsCount { count }
           expectedArrival: metafield(namespace: "custom", key: "expected_arrival") { value }
           featuredImage { url }
