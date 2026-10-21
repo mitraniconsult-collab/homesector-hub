@@ -37,6 +37,13 @@ TAXONOMY_TO_FAVI_GR = {
         "Ομπρέλες κήπου", "https://favi.gr/proionta/kathgoria/ompreles-kipou"),
     "gid://shopify/TaxonomyCategory/hg-10-18-4-1": (
         "Κάδοι απορριμμάτων", "https://favi.gr/proionta/kathgoria/kadoi-aporrimmatwn"),
+    "gid://shopify/TaxonomyCategory/hg-10-16-1-4": (
+        "Κρεμάστρες ρούχων", "https://favi.gr/proionta/kathgoria/kremastres-rouhwn"),
+    "gid://shopify/TaxonomyCategory/hg-10-16-10": (
+        "Κουτιά αποθήκευσης και οργάνωσης > Καλάθια αποθήκευσης",
+        "https://favi.gr/proionta/kathgoria/koutia-apothikeusis-kai-organwsis/kalathia-apothikefsis"),
+    "gid://shopify/TaxonomyCategory/fr-4-5": (
+        "Συρταριέρες", "https://favi.gr/proionta/kathgoria/syrtarieres"),
 }
 
 
