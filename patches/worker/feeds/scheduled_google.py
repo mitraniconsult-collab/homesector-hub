@@ -117,6 +117,8 @@ def run(mount, should_stop):
                                  root=mount, should_stop=should_stop)
                     gr_complete = gr.get('source_complete', False)
                     print('[favi-gr-scan] ' + json.dumps(gr, sort_keys=True), flush=True)
+                    if gr.get('status') == 'incomplete':
+                        continue
                 except Exception as exc:
                     print('[favi-gr-scan] FAILED type=' + type(exc).__name__, flush=True)
         except Exception as exc:
