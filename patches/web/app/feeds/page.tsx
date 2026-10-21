@@ -7,6 +7,11 @@ type FaviReport = {
   xml_items?: number;
   candidate_rows?: number;
   reviewed_category_products?: number;
+  greek_published_products?: number;
+  greek_published_variants?: number;
+  mapped_category_products?: number;
+  verified_market_url_products?: number;
+  localized_copy_products_in_mapped_categories?: number;
   approved_by_favi?: boolean;
   published?: boolean;
 };
@@ -78,7 +83,10 @@ export default function FeedsPage() {
           <span className="badge warn">Частичен преглед</span>
         </div>
         <p className="muted">Пробен гръцки фийд. Цветовите варианти са свързани към общ продукт.</p>
-        {favi && <p>Варианти в XML: <strong>{favi.xml_items?.toLocaleString("bg-BG") ?? "—"}</strong> · Прегледани продукти за категория: <strong>{favi.reviewed_category_products?.toLocaleString("bg-BG") ?? "—"}</strong></p>}
+        {favi && <>
+          <p>Варианти в XML: <strong>{favi.xml_items?.toLocaleString("bg-BG") ?? "—"}</strong> · Активни продукти за GR: <strong>{favi.greek_published_products?.toLocaleString("bg-BG") ?? "—"}</strong></p>
+          <p className="muted">Варианти в Shopify за GR: {favi.greek_published_variants?.toLocaleString("bg-BG") ?? "—"} · С проверена категория: {(favi.mapped_category_products ?? favi.reviewed_category_products)?.toLocaleString("bg-BG") ?? "—"} · С проверен адрес: {favi.verified_market_url_products?.toLocaleString("bg-BG") ?? "—"} · С гръцко заглавие и описание сред категоризираните: {favi.localized_copy_products_in_mapped_categories?.toLocaleString("bg-BG") ?? "—"}</p>
+        </>}
         <div className="notice" style={{ marginTop: 14 }}>Това е частичен преглед. Още не е одобрен от FAVI и не е подаден към тях. Не използвайте този URL като производствен фийд.</div>
         {errors.favi && <p role="alert" className="notice">{errors.favi}</p>}
         <div className="actions" style={{ marginTop: 16 }}>
