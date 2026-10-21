@@ -120,7 +120,9 @@ def run(mount, should_stop):
                     if gr.get('status') == 'incomplete':
                         continue
                 except Exception as exc:
-                    print('[favi-gr-scan] FAILED type=' + type(exc).__name__, flush=True)
+                    print('[favi-gr-scan] FAILED type=' + type(exc).__name__ +
+                          (' reason=' + str(exc)[:100] if isinstance(exc, RuntimeError) else ''),
+                          flush=True)
         except Exception as exc:
             print('[feed-schedule] FAILED type=' + type(exc).__name__, flush=True)
         for _ in range(6):
