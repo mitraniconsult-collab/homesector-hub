@@ -40,12 +40,17 @@ def verify_market_urls(products, category_by_product, workers=8):
         raise ValueError("Invalid URL verification concurrency")
     verified = set()
     reasons = Counter()
+    samples = {}
     with ThreadPoolExecutor(max_workers=workers) as pool:
         futures = {pool.submit(check_one, product): product["id"] for product in candidates}
         for future in as_completed(futures):
             valid, reason = future.result()
             reasons[reason] += 1
+            if not valid and len(samples.get(reason, [])) < 3:
+                samples.setdefault(reason, []).append(next(
+                    p.get("handle") for p in candidates if p["id"] == futures[future]))
             if valid:
                 verified.add(futures[future])
     return verified, {"checked": len(candidates), "verified": len(verified),
-                      "reasons": dict(sorted(reasons.items()))}
+                      "reasons": dict(sorted(reasons.items())),
+                      "sample_handles": samples}
