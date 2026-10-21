@@ -117,6 +117,16 @@ def finalize(journal, root, store=None, token=None):
     report["verified_url_check"] = url_check
     report["source_products"] = meta["products"]
     report["greek_published_products"] = len(greek_products)
+    report["greek_published_variants"] = sum(
+        len((p.get("variants") or {}).get("nodes") or []) for p in greek_products)
+    report["mapped_category_products"] = len(categories)
+    report["verified_market_url_products"] = len(
+        set(urls) | set(auto_urls) | set(collection_urls))
+    report["localized_copy_products_in_mapped_categories"] = sum(
+        {"title", "body_html"}.issubset({
+            entry.get("key") for entry in
+            translated_map.get(pid, {}).get("GR", []) if entry.get("value")
+        }) for pid in categories)
     report["top_source_product_types"] = Counter(
         str(p.get("productType") or "").strip() for p in greek_products
     ).most_common(50)
