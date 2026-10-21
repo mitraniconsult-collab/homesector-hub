@@ -51,3 +51,40 @@ def fetch_translations(product_ids, store=None, token=None, version="2026-07"):
                 for country in LOCALES
             }
     return result
+
+
+def fetch_variant_translations(variant_ids, market, store=None, token=None,
+                               version="2026-07"):
+    """Fetch actual Shopify option translations keyed by variant GID."""
+    if market not in LOCALES:
+        raise ValueError("Unsupported translation locale")
+    ids = list(dict.fromkeys(variant_ids))
+    if any(not isinstance(x, str) or not x.startswith("gid://shopify/ProductVariant/") for x in ids):
+        raise ValueError("Expected Shopify ProductVariant IDs")
+    if not ids:
+        return {}
+    from .markets_catalog import shopify_post
+    store = (store or os.environ.get("SHOPIFY_STORE", "")).strip()
+    if not store.endswith(".myshopify.com") or "/" in store:
+        raise ValueError("Invalid Shopify store")
+    token = token or get_admin_token(store)
+    url = f"https://{store}/admin/api/{version}/graphql.json"
+    result = {}
+    for start in range(0, len(ids), BATCH_SIZE):
+        batch = ids[start:start + BATCH_SIZE]
+        vars_decl = ", ".join(f"$v{i}: ID!" for i in range(len(batch)))
+        fields = " ".join(
+            f'v{i}: productVariant(id: $v{i}) {{ id translations(locale: "{LOCALES[market]}") {{ key value }} }}'
+            for i in range(len(batch)))
+        query = f"query FeedVariantTranslations({vars_decl}) {{ {fields} }}"
+        values = {f"v{i}": gid for i, gid in enumerate(batch)}
+        # shopify_post accepts URL, token, payload; never log returned copy.
+        data = shopify_post(url, token, {"query": query, "variables": values})
+        if data.get("errors") or not data.get("data"):
+            raise RuntimeError("Shopify variant translations query failed")
+        for i, gid in enumerate(batch):
+            variant = data["data"].get(f"v{i}")
+            if not variant or variant.get("id") != gid:
+                raise RuntimeError("Shopify variant translation response incomplete")
+            result[gid] = variant.get("translations") or []
+    return result
