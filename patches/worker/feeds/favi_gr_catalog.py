@@ -19,6 +19,7 @@ from .favi_gr_collection_urls import verify_collection_urls
 from .favi_gr_urls import verify_market_urls
 from .markets_catalog import catalog_query, read_remaining_variants
 from .shopify_auth import get_admin_token
+from .shopify_translations import fetch_translations
 from .xml_audit import validate_xml
 
 
@@ -86,7 +87,11 @@ def finalize(journal, root, store=None, token=None):
     greek_products = [p for p in products if p.get("published_GR") is True
                       and p.get("status") == "ACTIVE"]
     categories = categories_for_products(greek_products, categories)
-    auto_urls, url_check = verify_market_urls(greek_products, categories)
+    translated_map = fetch_translations(
+        [p["id"] for p in greek_products if p["id"] in categories],
+        store=store, token=token, market="GR")
+    auto_urls, url_check = verify_market_urls(
+        greek_products, categories, translated_map=translated_map)
     print("[favi-gr-url] " + json.dumps(url_check, sort_keys=True), flush=True)
     missing = [p for p in greek_products if p["id"] in categories and p["id"] not in auto_urls]
     if missing:
@@ -94,15 +99,19 @@ def finalize(journal, root, store=None, token=None):
         if not shop.endswith(".myshopify.com") or "/" in shop:
             raise ValueError("Invalid Shopify hostname for GR collection paths")
         collection_urls, collection_check = verify_collection_urls(
-            missing, set(), shop, token or get_admin_token(shop))
+            missing, set(), shop, token or get_admin_token(shop),
+            translated_map=translated_map)
     else:
         collection_urls, collection_check = {}, {"checked": 0, "verified": 0}
     for product in greek_products:
+        if product["id"] in auto_urls:
+            product["verified_market_url_GR"] = auto_urls[product["id"]]
         if product["id"] in collection_urls:
             product["verified_market_url_GR"] = collection_urls[product["id"]]
     print("[favi-gr-collection-url] " + json.dumps(collection_check, sort_keys=True), flush=True)
-    xml, report = create_preview(greek_products, categories,
-                                 set(urls) | auto_urls | set(collection_urls))
+    xml, report = create_preview(
+        greek_products, categories, set(urls) | set(auto_urls) | set(collection_urls),
+        translated_map=translated_map)
     report["verified_collection_url_check"] = collection_check
     report["reviewed_category_products"] = len(categories)
     report["verified_url_check"] = url_check
@@ -142,3 +151,4 @@ def finalize(journal, root, store=None, token=None):
 
 if __name__ == "__main__":
     print(json.dumps(execute(batch_limit=int(os.getenv("FEED_GR_PAGE_LIMIT", "10")))))
+
