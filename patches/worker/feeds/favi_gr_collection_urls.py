@@ -13,7 +13,7 @@ query FeedCollectionPaths($ids: [ID!]!) {
   nodes(ids: $ids) {
     ... on Product {
       id handle
-      collections(first: 4) { nodes { handle } pageInfo { hasNextPage } }
+      collections(first: 20) { nodes { handle } pageInfo { hasNextPage } }
     }
   }
 }
@@ -40,9 +40,12 @@ def _candidates(products, missing_ids, store, token):
                 handle = str(collection.get("handle") or "")
                 if handle and "/" not in handle and "?" not in handle and "#" not in handle:
                     handles.append(handle)
-            # Prefer category collections over broad catalog, brand and promo paths.
+            # Category collection paths can serve a GR product even when its
+            # direct /products/ URL returns 404. They may appear after the
+            # first four memberships and after several brand collections.
             generic = {"allproducts", "atmosphera", "5five", "hesperide", "buy3pay2"}
             specific = [h for h in dict.fromkeys(handles) if h.casefold() not in generic]
+            specific.sort(key=lambda h: not h.casefold().endswith("-category"))
             result[node["id"]] = (specific or list(dict.fromkeys(handles)))[:2]
     return result
 
