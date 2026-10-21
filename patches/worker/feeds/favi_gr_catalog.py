@@ -7,6 +7,7 @@ pages and per-product Greek categories; absent files are treated as empty gates.
 import hashlib
 import json
 import os
+from datetime import datetime, timezone
 from collections import Counter
 from pathlib import Path
 
@@ -34,16 +35,17 @@ def _inputs(root):
     return categories, urls
 
 
-def execute(batch_limit=10, root=None, store=None, token=None, should_stop=lambda: False):
+def execute(batch_limit=10, root=None, store=None, token=None, should_stop=lambda: False,
+            source_folder=None, publish=None):
     if not isinstance(batch_limit, int) or not 1 <= batch_limit <= 1000:
         raise ValueError("batch_limit must be 1..1000")
     root = root or os.environ.get("FEED_DURABLE_PATH")
     if not root:
         raise ValueError("Durable mount path is not configured")
-    journal = DurableJournal(Path(root) / "favi-gr-source")
+    journal = DurableJournal(source_folder or Path(root) / "favi-gr-source")
     meta, _ = journal.load()
     if meta["finished"]:
-        return finalize(journal, root, store=store, token=token)
+        return finalize(journal, root, store=store, token=token, publish=publish)
     store = store or os.environ.get("SHOPIFY_STORE", "")
     if not store.endswith(".myshopify.com") or "/" in store:
         raise ValueError("Invalid Shopify hostname")
@@ -74,12 +76,12 @@ def execute(batch_limit=10, root=None, store=None, token=None, should_stop=lambd
         cursor = end
         print(f"[favi-gr-scan] checkpoint products={meta['products']}", flush=True)
         if not more:
-            return finalize(journal, root, store=store, token=token)
+            return finalize(journal, root, store=store, token=token, publish=publish)
     return {"status": "incomplete", "source_products": meta["products"],
             "cursor_saved": True, "published": False}
 
 
-def finalize(journal, root, store=None, token=None):
+def finalize(journal, root, store=None, token=None, publish=None):
     meta, products = journal.load()
     if not meta["finished"] or len(products) != meta["products"]:
         raise RuntimeError("Incomplete Greek source catalog")
@@ -135,6 +137,11 @@ def finalize(journal, root, store=None, token=None):
         for p in greek_products if p.get("category")
     ).most_common(50)
     report["source_complete"] = True
+    # The journal manifest is committed only after its last Shopify page.
+    # Re-finalizing an old journal must not disguise the age of its source.
+    report["source_snapshot_at"] = datetime.fromtimestamp(
+        journal.manifest.stat().st_mtime, timezone.utc).isoformat()
+    report["generated_at"] = datetime.now(timezone.utc).isoformat()
     report["sha256"] = hashlib.sha256(xml).hexdigest()
     if report["xml_items"]:
         audit = validate_xml(xml, "GR", max_issues=0)
@@ -152,8 +159,10 @@ def finalize(journal, root, store=None, token=None):
             os.fsync(fh.fileno())
         os.replace(temporary, folder / name)
     print("[favi-gr-scan] " + json.dumps(report, sort_keys=True), flush=True)
-    if os.getenv("FEED_FAVI_GR_PREVIEW_PUBLISH") == "yes":
-        receipt = publish_preview(root)
+    if publish is None:
+        publish = os.getenv("FEED_FAVI_GR_PREVIEW_PUBLISH") == "yes"
+    if publish:
+        receipt = publish_preview(root, source_folder=folder)
         print("[favi-gr-preview] " + json.dumps(receipt, sort_keys=True), flush=True)
     return report
 
