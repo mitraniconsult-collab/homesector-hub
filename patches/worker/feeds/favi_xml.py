@@ -66,8 +66,12 @@ def generate_favi(rows, market="BG"):
         seen_ids.add(item_id)
         seen_urls.add(link)
         item = ET.SubElement(channel, "item")
-        for field in ("id", "title", "description", "link", "image_link",
-                      "product_type", "brand", "gtin", "mpn", "item_group_id", "color"):
+        # FAVI's Google RSS sample uses plain RSS item title, description and
+        # link; product attributes live in the Google namespace.
+        for field in ("title", "description", "link"):
+            ET.SubElement(item, field).text = str(row[field])
+        for field in ("id", "image_link", "product_type", "brand", "gtin",
+                      "mpn", "item_group_id", "color"):
             _g(item, field, row.get(field))
         _g(item, "price", f"{row['price']} {row['currency']}")
         _g(item, "availability", feed_availability(row))
