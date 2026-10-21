@@ -49,7 +49,7 @@ def test_greek_colors_share_a_parent_and_keep_zero_stock_continue():
     assert {x.findtext(G + "color") for x in items} == {"Καφέ", "Μπεζ"}
     assert all(x.findtext(G + "availability") == "in_stock" for x in items)
     assert all(x.findtext(G + "price") == "99.00 EUR" for x in items)
-    assert all(x.findtext(G + "link").startswith("https://homesector.gr/") for x in items)
+    assert all(x.findtext("link").startswith("https://homesector.gr/") for x in items)
 
 
 def test_swapped_greek_colors_are_held():
