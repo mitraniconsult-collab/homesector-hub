@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import ProductImages from "@/components/ProductImages";
 import { easyreaTasks } from "@/lib/modules";
 
 type RunMode = "dry" | "real";
@@ -8,6 +9,8 @@ const terminal = (s?:string) => s === "success" || s === "failed";
 
 export default function EasyreaPage(){
   const [submitting,setSubmitting]=useState(false);
+  const [imagesOpen,setImagesOpen]=useState(false);
+  useEffect(()=>{ if(window.location.hash==="#add-images") setImagesOpen(true); },[]);
   const [mode,setMode]=useState<RunMode>("dry");
   const [batchSize,setBatchSize]=useState("50");
   const [aiProvider,setAiProvider]=useState("auto");
@@ -65,7 +68,6 @@ export default function EasyreaPage(){
       <button className={`btn ${mode==="real"?"danger":"secondary"}`} onClick={()=>setMode("real")}>REAL RUN</button>
     </div></div>
     <div className="notice">Общата синхронизация обновява продажбата при изчерпване и датите, без да променя складовите количества. Непознатите статуси остават за проверка; реалният режим спира при над 25% липсващи или непознати продукти.</div>
-    <p><a className="btn secondary" href="/shopify">Допълни липсващи снимки · OpenAI</a></p>
     <div className="sectionTitle"><h2>Задачи</h2><div className="actions">
       <label className="field">Максимум нови продукти<input value={batchSize} onChange={e=>setBatchSize(e.target.value)}/></label>
       <label className="field">AI доставчик<select value={aiProvider} onChange={e=>setAiProvider(e.target.value)}><option value="auto">Настройката на Worker</option><option value="claude">Claude</option><option value="openai">OpenAI</option></select></label>
@@ -75,7 +77,9 @@ export default function EasyreaPage(){
     <div className="notice">Импорт: каталогът и вече прочетените продуктови карти се пазят 24 часа. При нужда използвайте „Обнови каталога от Easyrea“. Тестът по подразбиране прави отчет без AI заявки. REAL RUN проверява SKU и EAN в Shopify преди всеки запис и запазва готовите продукти като Draft.</div>
     <div className="card"><table className="table"><thead><tr><th>Задача</th><th>График</th><th>Време</th><th>Променя данни</th><th></th></tr></thead><tbody>
       {easyreaTasks.map(t=><tr key={t.key}><td><strong>{t.name}</strong><div className="muted code">{t.key}</div>{t.key==="import_products.py"&&<div className="muted">Проверка по SKU и EAN · всички снимки · Claude / OpenAI · Product category · Draft</div>}{t.key==="export_order_skus.py"&&<div className="muted">Excel + CSV · общо по SKU · филтър по бранд · редове по поръчки · липсващи SKU за проверка. Само четене, включва частични изпращания. Не приспада наличности / вече заявена стока.</div>}{t.key==="export_missing_skus.py"&&<div className="muted">EAN на варианти без SKU: atmosphera, Hesperide, Secret De Gourmet, 5five, Neka.</div>}</td><td>{t.cadence}</td><td>{t.duration}</td><td>{t.writes?"Да":"Не"}</td><td><button className="btn secondary" disabled={submitting || (!!job&&!terminal(job.status))} onClick={()=>run(t.key)}>Пусни</button></td></tr>)}
+      <tr><td><strong>Добави снимки</strong><div className="muted">Оригинали от Decoration Brands · избор на бранд · SKU/EAN · Active, Draft и Archived · подробен CSV отчет</div></td><td>при нужда</td><td>според броя продукти</td><td>Да</td><td><button className="btn secondary" onClick={()=>setImagesOpen(v=>!v)}>{imagesOpen?"Скрий":"Отвори"}</button></td></tr>
     </tbody></table></div>
+    <section id="add-images" style={{scrollMarginTop:24}}>{imagesOpen&&<ProductImages/>}</section>
     {message&&<div className="sectionTitle"><div className="notice">{message}</div></div>}
     <div className="sectionTitle"><h2>Job log</h2>{job&&<div className="muted code">{job.id} · {status}</div>}</div>
     {pollError&&<div className="notice">Live log: {pollError}</div>}

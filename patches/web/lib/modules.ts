@@ -10,7 +10,6 @@ export const modules: HubModule[] = [
   { id: "easyrea", href: "/easyrea", label: "Easyrea Sync", description: "Синхронизации, импорт, вариации, отчети и история.", status: "phase1" },
   { id: "logistics", href: "/logistics", label: "Logistics", description: "Shopify пратки и Speedy / Econt / Sameday статуси.", status: "phase1" },
   { id: "social", href: "/social", label: "Social", description: "Brand Collector, Content Feed, Drafts и publishing pipeline.", status: "phase1" },
-  { id: "shopify", href: "/shopify", label: "Shopify Operations", description: "Inventory, публикации, translations и cleanup проверки.", status: "planned" },
   { id: "feeds", href: "/feeds", label: "Feeds", description: "Фийдове по пазар, XML прегледи и отчети.", status: "phase1" },
   { id: "reports", href: "/reports", label: "Reports", description: "Общи отчети, job history и грешки.", status: "planned" }
 ];

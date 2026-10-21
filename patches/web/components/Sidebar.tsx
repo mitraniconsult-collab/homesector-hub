@@ -7,7 +7,6 @@ const items = [
   ["/easyrea", "Easyrea Sync"],
   ["/logistics", "Logistics"],
   ["/social", "Social"],
-  ["/shopify", "Shopify Ops"],
   ["/feeds", "Feeds"],
   ["/reports", "Reports"],
   ["/settings", "Settings"]

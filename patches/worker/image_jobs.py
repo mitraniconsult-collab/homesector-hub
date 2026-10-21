@@ -19,10 +19,11 @@ sys.path.insert(0, str(Path(__file__).parent / 'easyrea'))
 from import_products import Shopify, UPDATE, UPDATE_VARIANT, UncertainCreate
 from product_ai import request_json, AIConfigurationError, AITransientError
 from image_sources import discover, safe_url
+from image_diagnostics import ImageReview, describe
 from import_rules import sku, ean
 from image_quality import candidate, gallery_plan, fingerprint, images
 
-SCAN = '''query QualityCandidates($cursor:String,$query:String!){products(first:25,after:$cursor,query:$query,sortKey:ID){nodes{id title vendor variants(first:2){nodes{sku barcode} pageInfo{hasNextPage}} media(first:10){nodes{id status ... on MediaImage{image{id url width height}}} pageInfo{hasNextPage}}} pageInfo{hasNextPage endCursor}}}'''
+SCAN = '''query QualityCandidates($cursor:String,$query:String!){products(first:25,after:$cursor,query:$query,sortKey:ID){nodes{id title vendor status variants(first:2){nodes{sku barcode} pageInfo{hasNextPage}} media(first:10){nodes{id status ... on MediaImage{image{id url width height}}} pageInfo{hasNextPage}}} pageInfo{hasNextPage endCursor}}}'''
 VENDORS = '''query ImageJobVendors($cursor:String){productVendors(first:250,after:$cursor){nodes pageInfo{hasNextPage endCursor}}}'''
 QUALITY_PRODUCT = '''query QualityProduct($id:ID!){product(id:$id){id title vendor status variants(first:2){nodes{id sku barcode image{id}} pageInfo{hasNextPage}} media(first:250){nodes{id alt status ... on MediaImage{image{id url width height}}} pageInfo{hasNextPage}}}}'''
 DETACH = '''mutation QualityDetach($files:[FileUpdateInput!]!){fileUpdate(files:$files){files{id} userErrors{field message}}}'''
@@ -53,14 +54,14 @@ def matches_vendor(product, vendor):
     return not vendor or vendor_key(product.get('vendor')) == vendor_key(vendor)
 
 def scan_query(state):
-    query = 'status:active'
+    query = ''
     if state.get('collection_id'): query += ' collection_id:' + state['collection_id']
     vendor = state.get('vendor', '')
     if vendor:
         aliases = {vendor, vendor_key(vendor)}
         if vendor_key(vendor) == 'hesperide': aliases.update(('Hesperide', 'Hespéride'))
         query += ' (' + ' OR '.join('vendor:' + json.dumps(v, ensure_ascii=False) for v in sorted(aliases)) + ')'
-    return query
+    return query.strip()
 
 class RemoteState:
     def __init__(self):
@@ -87,7 +88,8 @@ def summary(state):
     result = {k: state.get(k) for k in ('id','status','phase','mode','created_at','updated_at','cursor','scanned','limit','collection_id','vendor','error','ai_calls')}
     result['total'] = len(state['items'])
     result['counts'] = dict(Counter(i.get('result', 'pending') for i in state['items']))
-    result['recent'] = [{k:i.get(k) for k in ('id','sku','title','result','note','source_url','image_count','remove_ids')} for i in state['items'] if i.get('result')][-20:]
+    result['reason_counts'] = dict(Counter(describe(i)['reason_code'] for i in state['items'] if i.get('result')))
+    result['recent'] = [{k:i.get(k) for k in ('id','sku','barcode','title','result','stage','reason_code','note','action','product_status','source_query','source_candidates','source_url','image_count','remove_ids')} for i in (describe(row) for row in state['items'] if row.get('result'))][-20:]
     return result
 
 
@@ -230,10 +232,10 @@ class ImageJobs:
                         for p in conn['nodes']:
                             if p['id'] not in eligible or p['id'] in known or len(s['items']) >= s['limit']: continue
                             vs = p['variants']['nodes']; v = vs[0] if vs else {}
-                            row = {'id':p['id'],'title':p['title'],'sku':sku(v.get('sku')),'barcode':ean(v.get('barcode')),'vendor':p['vendor'],'media_at_scan':None if p['media'].get('pageInfo',{}).get('hasNextPage') else [m['id']for m in p['media']['nodes']]}
+                            row = {'id':p['id'],'title':p['title'],'sku':sku(v.get('sku')),'barcode':ean(v.get('barcode')),'vendor':p['vendor'],'product_status':p.get('status'),'media_at_scan':None if p['media'].get('pageInfo',{}).get('hasNextPage') else [m['id']for m in p['media']['nodes']]}
                             if p['id'] in s.get('protected_ids',[]): row.update(result='REVIEW_UNCERTAIN',note='Непотвърден запис от предишна задача; без повторно качване')
-                            elif len(vs)!=1 or p['variants']['pageInfo']['hasNextPage']: row.update(result='REVIEW_VARIANTS',note='Обединен продукт: нужна е проверка на снимките по варианти')
-                            elif not row['sku']: row.update(result='REVIEW_NO_SKU',note='Липсва SKU')
+                            elif len(vs)!=1 or p['variants']['pageInfo']['hasNextPage']: row.update(result='REVIEW_VARIANTS',note='Продуктът има няколко варианта. SKU на първите варианти: '+', '.join(sku(v.get('sku')) or '(без SKU)' for v in vs)+'. Нужна е проверка на снимките по цвят/модел.')
+                            elif not row['sku'] and not row['barcode']: row.update(result='REVIEW_NO_IDENTIFIER',note='Липсват и SKU, и EAN/баркод; няма точен идентификатор за търсене.')
                             s['items'].append(row); known.add(p['id'])
                         s['scanned'] += len(conn['nodes']); s['scan_cursor'] = info['endCursor']
                         if not info['hasNextPage'] or len(s['items']) >= s['limit']: s['phase']='process'
@@ -258,8 +260,10 @@ class ImageJobs:
                 except UncertainCreate:
                     # Attempt was already checkpointed. Reconcile on the next step.
                     continue
+                except ImageReview as exc:
+                    item.update(result='REVIEW',reason_code=exc.code,note=str(exc)[:1500],action=exc.action,**exc.details)
                 except ValueError as exc:
-                    item.update(result='REVIEW',note=str(exc)[:500])
+                    item.update(result='REVIEW',note=str(exc)[:1500])
                 self.update(lambda s:(s['items'].__setitem__(index,item),s.update(cursor=index+1,retry_count=0,retry_at=0,error='')))
         except (Stopped, Conflict): raise
         except Exception:
@@ -268,47 +272,63 @@ class ImageJobs:
     def process(self, shop, state, item, index):
         product = shop.product(id=item['id'])
         if not product: raise ValueError('Продуктът е изтрит')
+        item['product_status'] = product['status']
+        item.setdefault('before_image_count', len(images(product)))
         if item.get('attempted'):
+            item['stage'] = 'upload'
             result = reconcile(product, item)
             if result == 'WAITING_MEDIA': return result
             if result=='ADDED' and item.get('remove_ids'):
                 result=self.finish_replacement(shop,product,item,index)
                 if result=='WAITING_MEDIA':return result
-            item.update(result=result,note='Галерията е потвърдена в Shopify' if result in ('ADDED','IMPROVED') else 'Непотвърден запис; новите снимки са запазени, старите не се премахват повторно')
+            item['result'] = result
+            if result in ('ADDED','IMPROVED'):
+                item['uploaded_image_count'] = len(item['urls'])
+                item['note'] = f'Потвърдени {len(item["urls"])} нови снимки в Shopify.'
+                item['stage'] = 'completed'
+            else:
+                item.pop('note',None)
+            item.update(describe(item))
             return result
+        item['stage'] = 'precheck'
         if not matches_vendor(product, state.get('vendor', '')): raise ValueError('Брандът вече не съответства на избраната задача')
         variants = product['variants']['nodes']
         if len(variants)!=1 or product['variants']['pageInfo']['hasNextPage']: raise ValueError('Променени варианти')
         if sku(variants[0].get('sku'))!=item['sku'] or ean(variants[0].get('barcode'))!=item['barcode']: raise ValueError('Променени SKU/EAN')
         if item.get('media_at_scan') is not None and 'media_at_scan' in item and [m['id']for m in product['media']['nodes']]!=item['media_at_scan'] and not item.get('urls'):raise ValueError('Галерията е променена след обхода')
         if product['media'].get('pageInfo',{}).get('hasNextPage'):raise ValueError('Непълна галерия — нужна е проверка')
-        if product['status'] != 'ACTIVE': raise ValueError('Продуктът вече не е активен')
         if not item.get('urls'):
+            item['stage'] = 'source'
             source = discover(item['sku'],item['barcode'])
             item['source_url']=source['url']
+            item.update({k:source[k] for k in ('source_query','source_candidates','source_rejections') if k in source})
+            item['stage'] = 'quality'
             if images(product):
+                if state['mode']=='real': item['stage'] = 'ai'
                 plan=gallery_plan(product,source,real=state['mode']=='real',on_ai=lambda:self.update(lambda s:s.update(ai_calls=s['ai_calls']+1)))
                 item.update(plan)
             else:
                 item.update(urls=source['images'],remove_ids=[],replacements=[],before_media=fingerprint(product))
                 if state['mode']=='real':
+                    item['stage'] = 'ai'
                     if not os.environ.get('OPENAI_API_KEY'):raise AIConfigurationError('Липсва OpenAI ключ')
                     decision=verify(product,source)
                     self.update(lambda s:s.update(ai_calls=s['ai_calls']+1))
-                    if not decision['matches']:raise ValueError('OpenAI: '+decision['reason'])
+                    if not decision['matches']:raise ImageReview('AI_PRODUCT_UNCONFIRMED','AI не потвърди оригинала: '+decision['reason'],'Сравни модела, цвета, размера и обема в Shopify с оригинала от доставчика.')
                     item['ai_reason']=decision['reason']
             item['image_count']=len(item['urls'])
             if state['mode']=='dry':
-                item.update(result='PLANNED' if item['urls'] else 'UNCHANGED',note=item.get('note','Намерени снимки; без AI разход и без Shopify промени'));return item['result']
+                item.update(result='PLANNED' if item['urls'] else 'UNCHANGED',stage='completed',note=item.get('note','Намерени снимки; без AI разход и без Shopify промени'));return item['result']
             if not item['urls']:
-                item.update(result='UNCHANGED',note=item.get('note','Няма нови или по-добри снимки'));return 'UNCHANGED'
+                item.update(result='UNCHANGED',stage='completed',note=item.get('note','Няма нови или по-добри снимки'));return 'UNCHANGED'
             item['verified_title'] = product['title']
             item['verified_vendor'] = product['vendor']
             self.update(lambda s:s['items'].__setitem__(index,copy.deepcopy(item)))
         if product['title'] != item.get('verified_title') or product['vendor'] != item.get('verified_vendor'): raise ValueError('Променено заглавие или бранд след AI проверката')
         # Re-read immediately before the durable write intent.
         latest = shop.product(id=item['id'])
-        if latest['title'] != product['title'] or latest['vendor'] != product['vendor'] or fingerprint(latest)!=item['before_media'] or latest['status']!='ACTIVE' or latest['variants'] != product['variants']: raise ValueError('Продуктът е променен по време на проверката')
+        if latest['title'] != product['title'] or latest['vendor'] != product['vendor'] or fingerprint(latest)!=item['before_media'] or latest['variants'] != product['variants']: raise ValueError('Продуктът е променен по време на проверката')
+        item['stage'] = 'upload'
         item['attempted'] = True
         item['attempted_at'] = time.time()
         self.update(lambda s:s['items'].__setitem__(index,copy.deepcopy(item)))
@@ -316,7 +336,8 @@ class ImageJobs:
         shop.checked(shop.call(UPDATE,{'product':{'id':item['id']},'media':media}),'productUpdate')
         return 'WAITING_MEDIA'
     def finish_replacement(self,shop,product,item,index):
-        if item.get('verified_title') and (product['title']!=item['verified_title'] or product['vendor']!=item.get('verified_vendor') or product['status']!='ACTIVE'):raise ValueError('Продуктът е променен; старите снимки са запазени')
+        item['stage'] = 'cleanup'
+        if item.get('verified_title') and (product['title']!=item['verified_title'] or product['vendor']!=item.get('verified_vendor')):raise ValueError('Продуктът е променен; старите снимки са запазени')
         variants=product['variants']['nodes']
         if len(variants)!=1 or product['variants']['pageInfo']['hasNextPage'] or sku(variants[0].get('sku'))!=item['sku']:raise ValueError('Променени варианти; старите снимки са запазени')
         expected={image_alt(item['sku'],u):u for u in item['urls']}
@@ -349,9 +370,10 @@ class ImageJobs:
         return 'WAITING_MEDIA'
     def report(self):
         state, _ = self.store.read()
-        out = io.StringIO(); fields = ['id','sku','barcode','title','vendor','result','note','source_url','image_count','remove_ids','originals']
+        out = io.StringIO(); fields = ['id','sku','barcode','title','vendor','product_status','result','stage','reason_code','note','action','source_query','source_candidates','source_rejections','source_url','before_image_count','image_count','uploaded_image_count','remove_ids','originals']
         writer = csv.DictWriter(out,fieldnames=fields,extrasaction='ignore'); writer.writeheader()
         for row in (state or {}).get('items',[]):
+            row = describe(row)
             # Prevent supplier strings being interpreted as spreadsheet formulas.
             writer.writerow({k:(json.dumps(v,ensure_ascii=False)if isinstance(v,(dict,list))else "'"+v if isinstance(v,str) and v.startswith(('=','+','-','@')) else v) for k,v in row.items() if k in fields})
         return '\ufeff'+out.getvalue()

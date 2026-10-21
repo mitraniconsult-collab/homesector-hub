@@ -30,14 +30,41 @@ class ImagesTests(unittest.TestCase):
         self.assertIn('vendor:"Hespéride"',jobs.scan_query(store.state))
     def test_brand_query_combines_collection_and_quotes_search_characters(self):
         query=jobs.scan_query({'vendor':'ACME " OR status:draft','collection_id':'123'})
-        self.assertTrue(query.startswith('status:active collection_id:123 ('))
+        self.assertTrue(query.startswith('collection_id:123 ('))
         self.assertIn('vendor:"ACME \\" OR status:draft"',query)
-        self.assertEqual(jobs.scan_query({}),'status:active')
+        self.assertEqual(jobs.scan_query({}),'')
         self.assertTrue(jobs.matches_vendor({'vendor':'Hesperide'},'Hespéride'))
         self.assertFalse(jobs.matches_vendor({'vendor':'Hesperide Garden'},'Hesperide'))
     def test_invalid_brand_cannot_be_saved(self):
         for vendor in ('Hesperide\nOR status:draft','x'*101,None):
             with self.assertRaises(ValueError):jobs.clean_vendor(vendor)
+    def test_draft_and_archived_products_can_receive_images_without_activation(self):
+        for status in ('DRAFT','ARCHIVED'):
+            product=self.product();product['status']=status
+            item=self.item();item.pop('attempted');item.pop('urls')
+            runner=jobs.ImageJobs(State());runner.update=Mock()
+            shop=Mock();shop.product.return_value=product
+            source={'url':'https://www.decorationbrands.com/a.html','images':['https://media.decorationbrands.com/media/catalog/product/a.jpg']}
+            with patch.object(jobs,'discover',return_value=source),patch.object(jobs,'verify',return_value={'matches':True,'reason':'Точен модел'}),patch.dict('os.environ',{'OPENAI_API_KEY':'test'}):
+                self.assertEqual(runner.process(shop,{'mode':'real'},item,0),'WAITING_MEDIA')
+            self.assertEqual(item['product_status'],status)
+            self.assertNotIn('status',shop.call.call_args.args[1]['product'])
+    def test_ean_without_sku_can_be_processed(self):
+        product=self.product();product['variants']['nodes'][0].update(sku='',barcode='3560231743154')
+        item=self.item();item.update(sku='',barcode='3560231743154');item.pop('attempted');item.pop('urls')
+        shop=Mock();shop.product.return_value=product
+        with patch.object(jobs,'discover',return_value={'url':'source','images':['image']}) as discover:
+            self.assertEqual(jobs.ImageJobs(State()).process(shop,{'mode':'dry'},item,0),'PLANNED')
+        discover.assert_called_once_with('','3560231743154')
+    def test_report_explains_legacy_failures_and_keeps_unknown_image_count_blank(self):
+        import csv,io
+        state={'items':[{'sku':'','barcode':'3560231743154','result':'REVIEW_NO_SKU','note':'Липсва SKU'}, {'sku':'123','result':'REVIEW_CLEANUP','note':'Непотвърден запис'}]}
+        rows=list(csv.DictReader(io.StringIO(jobs.ImageJobs(State(state)).report().lstrip('\ufeff'))))
+        self.assertIn('наличния EAN',rows[0]['note'])
+        self.assertIn('нова задача',rows[0]['action'])
+        self.assertEqual(rows[0]['image_count'],'')
+        self.assertEqual(rows[1]['reason_code'],'CLEANUP_UNCONFIRMED')
+        self.assertIn('качени',rows[1]['note'])
     def test_scan_filters_other_brands_before_candidate_checks_and_limit(self):
         store=State();manager=jobs.ImageJobs(store)
         env={'SHOPIFY_STORE':'shop','SHOPIFY_CLIENT_ID':'id','SHOPIFY_CLIENT_SECRET':'secret'}
