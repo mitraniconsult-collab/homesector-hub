@@ -100,12 +100,24 @@ def tick(mount, should_stop=lambda: False, now=None):
 
 
 def run(mount, should_stop):
+    gr_complete = False
     while not should_stop():
         try:
             result = tick(mount, should_stop=should_stop)
             print('[feed-schedule] ' + json.dumps(result, sort_keys=True), flush=True)
             if result['status'] == 'incomplete':
                 continue
+            # Scan the Greek source catalog in bounded batches while BG waits.
+            # It writes a private quality report only, with no external URL.
+            if (os.getenv('FEED_FAVI_GR_SCAN') == 'yes' and not gr_complete
+                    and not should_stop()):
+                try:
+                    from .favi_gr_catalog import execute as scan_gr
+                    gr = scan_gr(batch_limit=5, root=mount, should_stop=should_stop)
+                    gr_complete = gr.get('source_complete', False)
+                    print('[favi-gr-scan] ' + json.dumps(gr, sort_keys=True), flush=True)
+                except Exception as exc:
+                    print('[favi-gr-scan] FAILED type=' + type(exc).__name__, flush=True)
         except Exception as exc:
             print('[feed-schedule] FAILED type=' + type(exc).__name__, flush=True)
         for _ in range(6):
