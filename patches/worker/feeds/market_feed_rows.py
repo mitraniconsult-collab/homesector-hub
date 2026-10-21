@@ -22,7 +22,8 @@ def prepare_market_rows(products, market, channel, verified_url_ids=None,
         translated_map = fetch_translations([p["id"] for p in products], market=market)
     translations = translated_map or {}
     if market == "GR" and channel == "favi" and translated_variant_map is None:
-        ids = [v["id"] for p in products for v in (p.get("variants") or {}).get("nodes", [])
+        ids = [v["id"] for p in products if p.get("id") in verified_url_ids
+               for v in (p.get("variants") or {}).get("nodes", [])
                if v.get("id") and any(str(o.get("name", "")).casefold() in
                                       ("color", "colour", "цвят", "цвет")
                                       for o in v.get("selectedOptions") or [])]
