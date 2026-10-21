@@ -41,6 +41,9 @@ def check_product(row, market, channel):
         problems.append("missing_favi_category")
     if channel == "favi" and not row.get("category_verified_for_market"):
         problems.append("unverified_favi_category")
+    if channel == "favi" and market == "GR" and row.get("color_option_index") \
+            and not row.get("verified_variant_color"):
+        problems.append("unverified_greek_variant_color")
     # The current catalog query uses the base product language. For non-BG
     # publishing require positive evidence of localized copy/URL.
     if market != "BG":
