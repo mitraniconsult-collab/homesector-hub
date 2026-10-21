@@ -7,6 +7,7 @@ pages and per-product Greek categories; absent files are treated as empty gates.
 import hashlib
 import json
 import os
+import time
 from datetime import datetime, timezone
 from collections import Counter
 from pathlib import Path
@@ -36,7 +37,7 @@ def _inputs(root):
 
 
 def execute(batch_limit=10, root=None, store=None, token=None, should_stop=lambda: False,
-            source_folder=None, publish=None):
+            source_folder=None, publish=None, deadline=None):
     if not isinstance(batch_limit, int) or not 1 <= batch_limit <= 1000:
         raise ValueError("batch_limit must be 1..1000")
     root = root or os.environ.get("FEED_DURABLE_PATH")
@@ -45,7 +46,8 @@ def execute(batch_limit=10, root=None, store=None, token=None, should_stop=lambd
     journal = DurableJournal(source_folder or Path(root) / "favi-gr-source")
     meta, _ = journal.load()
     if meta["finished"]:
-        return finalize(journal, root, store=store, token=token, publish=publish)
+        return finalize(journal, root, store=store, token=token, publish=publish,
+                        deadline=deadline, should_stop=should_stop)
     store = store or os.environ.get("SHOPIFY_STORE", "")
     if not store.endswith(".myshopify.com") or "/" in store:
         raise ValueError("Invalid Shopify hostname")
@@ -76,12 +78,14 @@ def execute(batch_limit=10, root=None, store=None, token=None, should_stop=lambd
         cursor = end
         print(f"[favi-gr-scan] checkpoint products={meta['products']}", flush=True)
         if not more:
-            return finalize(journal, root, store=store, token=token, publish=publish)
+            return finalize(journal, root, store=store, token=token, publish=publish,
+                            deadline=deadline, should_stop=should_stop)
     return {"status": "incomplete", "source_products": meta["products"],
             "cursor_saved": True, "published": False}
 
 
-def finalize(journal, root, store=None, token=None, publish=None):
+def finalize(journal, root, store=None, token=None, publish=None,
+             deadline=None, should_stop=lambda: False):
     meta, products = journal.load()
     if not meta["finished"] or len(products) != meta["products"]:
         raise RuntimeError("Incomplete Greek source catalog")
@@ -89,30 +93,48 @@ def finalize(journal, root, store=None, token=None, publish=None):
     greek_products = [p for p in products if p.get("published_GR") is True
                       and p.get("status") == "ACTIVE"]
     categories = categories_for_products(greek_products, categories)
-    translated_map = fetch_translations(
-        [p["id"] for p in greek_products if p["id"] in categories],
-        store=store, token=token, market="GR")
-    auto_urls, url_check = verify_market_urls(
-        greek_products, categories, translated_map=translated_map)
-    print("[favi-gr-url] " + json.dumps(url_check, sort_keys=True), flush=True)
-    missing = [p for p in greek_products if p["id"] in categories and p["id"] not in auto_urls]
-    if missing:
-        shop = store or os.getenv("SHOPIFY_STORE", "")
-        if not shop.endswith(".myshopify.com") or "/" in shop:
-            raise ValueError("Invalid Shopify hostname for GR collection paths")
-        collection_urls, collection_check = verify_collection_urls(
-            missing, set(), shop, token or get_admin_token(shop))
+    translated_variant_map = None
+    if deadline is not None:
+        from .favi_gr_finalize import collect
+        collected = collect(journal, greek_products, categories, set(urls), store, token,
+                            deadline, should_stop)
+        if collected["status"] == "yielded":
+            return {"status": "yielded", "stage": collected["stage"],
+                    "source_products": meta["products"], "published": False}
+        translated_map = collected["translated_map"]
+        auto_urls = collected["auto_urls"]
+        collection_urls = collected["collection_urls"]
+        url_check = collected["url_check"]
+        collection_check = collected["collection_check"]
+        translated_variant_map = collected["translated_variant_map"]
     else:
-        collection_urls, collection_check = {}, {"checked": 0, "verified": 0}
+        translated_map = fetch_translations(
+            [p["id"] for p in greek_products if p["id"] in categories],
+            store=store, token=token, market="GR")
+        auto_urls, url_check = verify_market_urls(
+            greek_products, categories, translated_map=translated_map)
+        print("[favi-gr-url] " + json.dumps(url_check, sort_keys=True), flush=True)
+        missing = [p for p in greek_products if p["id"] in categories and p["id"] not in auto_urls]
+        if missing:
+            shop = store or os.getenv("SHOPIFY_STORE", "")
+            if not shop.endswith(".myshopify.com") or "/" in shop:
+                raise ValueError("Invalid Shopify hostname for GR collection paths")
+            collection_urls, collection_check = verify_collection_urls(
+                missing, set(), shop, token or get_admin_token(shop))
+        else:
+            collection_urls, collection_check = {}, {"checked": 0, "verified": 0}
     for product in greek_products:
         if product["id"] in auto_urls:
             product["verified_market_url_GR"] = auto_urls[product["id"]]
         if product["id"] in collection_urls:
             product["verified_market_url_GR"] = collection_urls[product["id"]]
     print("[favi-gr-collection-url] " + json.dumps(collection_check, sort_keys=True), flush=True)
+    if deadline is not None and (should_stop() or time.time() >= deadline):
+        return {"status": "yielded", "stage": "serialize",
+                "source_products": meta["products"], "published": False}
     xml, report = create_preview(
         greek_products, categories, set(urls) | set(auto_urls) | set(collection_urls),
-        translated_map=translated_map)
+        translated_map=translated_map, translated_variant_map=translated_variant_map)
     report["verified_collection_url_check"] = collection_check
     report["reviewed_category_products"] = len(categories)
     report["verified_url_check"] = url_check
