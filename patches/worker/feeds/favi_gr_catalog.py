@@ -13,6 +13,8 @@ from pathlib import Path
 from .batch_job import post_graphql
 from .durable_journal import DurableJournal
 from .favi_gr_preview import create_preview
+from .favi_gr_taxonomy import categories_for_products
+from .favi_gr_urls import verify_market_urls
 from .markets_catalog import catalog_query, read_remaining_variants
 from .shopify_auth import get_admin_token
 from .xml_audit import validate_xml
@@ -81,7 +83,12 @@ def finalize(journal, root, store=None, token=None):
     categories, urls = _inputs(root)
     greek_products = [p for p in products if p.get("published_GR") is True
                       and p.get("status") == "ACTIVE"]
-    xml, report = create_preview(greek_products, categories, urls)
+    categories = categories_for_products(greek_products, categories)
+    auto_urls, url_check = verify_market_urls(greek_products, categories)
+    print("[favi-gr-url] " + json.dumps(url_check, sort_keys=True), flush=True)
+    xml, report = create_preview(greek_products, categories, set(urls) | auto_urls)
+    report["reviewed_category_products"] = len(categories)
+    report["verified_url_check"] = url_check
     report["source_products"] = meta["products"]
     report["greek_published_products"] = len(greek_products)
     report["top_source_product_types"] = Counter(
