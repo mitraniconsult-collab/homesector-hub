@@ -39,7 +39,7 @@ def _candidates(products, missing_ids, store, token):
                 if handle and "/" not in handle and "?" not in handle and "#" not in handle:
                     handles.append(handle)
             # A bounded number of real membership paths. Every path is checked.
-            result[node["id"]] = list(dict.fromkeys(handles))[:8]
+            result[node["id"]] = list(dict.fromkeys(handles))[:4]
     return result
 
 
