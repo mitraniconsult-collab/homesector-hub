@@ -31,12 +31,13 @@ def normalize_market(product, country):
         if not arrival and (product.get("variantsCount") or {}).get("count") == 1:
             arrival = (product.get("expectedArrival") or {}).get("value")
         options = variant.get("selectedOptions") or []
-        color = next((option.get("value") for option in options
-                      if str(option.get("name", "")).strip().casefold()
-                      in ("color", "colour", "цвят", "цвет")), None)
+        color_index = next((index for index, option in enumerate(options, start=1)
+                            if str(option.get("name", "")).strip().casefold()
+                            in ("color", "colour", "цвят", "цвет")), None)
+        color = options[color_index - 1].get("value") if color_index else None
         output.append({
             "id": variant.get("id"), "item_group_id": group_feed_id(product.get("id")),
-            "color": color, "title": (
+            "color": color, "color_option_index": color_index, "title": (
                 (variant.get("displayName") or product.get("title") or "").removesuffix(" - Default Title")
                 if country == "BG" else product.get("title")),
             "description": plain_text(product.get("descriptionHtml")),
