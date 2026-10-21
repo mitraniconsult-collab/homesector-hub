@@ -52,5 +52,19 @@ def test_translated_handle_is_verified_and_used_for_link():
             translated_map=translated)
     assert urls == {"p3": "https://homesector.gr/products/kouti-apothikeusis"}
     assert report["verified"] == 1
-    assert get.call_count == 1
+    assert get.call_count == 2
 
+
+
+def test_http_failure_report_preserves_status_code():
+    class Response:
+        status_code = 429
+        url = "https://homesector.gr/products/hello-chair"
+        headers = {"Content-Type": "text/html"}
+        text = "Too many requests"
+    product = {"id": "p4", "handle": "hello-chair"}
+    with patch("feeds.favi_gr_urls.requests.get", return_value=Response()):
+        urls, report = verify_market_urls([product], {"p4": {"verified": True}}, workers=1)
+    assert urls == {}
+    assert report["reasons"] == {"http_429": 1}
+    assert report["sample_handles"]["http_429"] == ["hello-chair"]
