@@ -5,8 +5,9 @@ Diagnostics: https://hub.homesector.bg/feeds/favi/GR-preview-report.json
 
 The worker has scanned 19,303 Shopify products; 8,444 are active and published
 in GR. Four checked Greek FAVI category mappings cover 594 products. Of these,
-69 product URLs passed the homesector.gr landing-page check. The other 461
-returned non-200; 64 redirected to another path. The first private XML candidate
+69 product URLs passed the latest homesector.gr landing-page check. The other 489
+returned non-200; 36 redirected to another path. An earlier run passed 57,
+so URL availability fluctuates. The first private XML candidate
 has 65 audited items with unique IDs. The counts can change at publication.
 The public endpoints are deliberately labeled partial_preview and noindex.
 
@@ -14,8 +15,10 @@ The worker reads contextual EUR prices and Shopify Greek translations. Distinct
 color variant IDs share the Shopify parent as g:item_group_id, and CONTINUE
 variants remain eligible at zero quantity. Reversed color translations on Cleon
 are held until fixed. Exclusion counts overlap by reason: 11,733 candidate
-variants lack a checked FAVI category, 12,473 lack a verified Greek URL, 3,004
-lack verified localized copy, and 874 lack verified color. They are not
+variants lack a checked FAVI category, 12,473 lack a verified Greek URL, 12,484
+lack verified localized copy, and 4,391 lack verified color. For efficiency,
+translations are fetched only for URL-verified products; these exclusion counts
+therefore include unverified URL rows whose translations were not queried. They are not
 distinct product counts.
 
 The publisher requires FEED_FAVI_GR_PREVIEW_PUBLISH=yes and a confirmed durable
