@@ -10,7 +10,8 @@
   The Greece preflight excludes these rows until source translations are corrected.
 - Petya's 2026-09-25 email states each country needs a separate FAVI registration and
   offers Greece as a free trial. Registration/acceptance has not been verified.
-- The public homesector.gr Cleon product page currently has Greek product text but Bulgarian menu labels; resolve the market landing-page language before destination review.\n- Greece product category paths must be detailed and Greek. The helper accepts an
+- The public homesector.gr Cleon product page currently has Greek product text but Bulgarian menu labels; resolve the market landing-page language before destination review.
+- Greece product category paths must be detailed and Greek. The helper accepts an
   explicitly verified per-product category map; it does not translate BG categories.
 
 ## Code
@@ -30,5 +31,5 @@ category coverage audit, destination acceptance and a stable hosted preview URL.
 
 Three Greek FAVI candidate regression checks passed locally with Python: grouped
 variants and CONTINUE, reversed Greek color hold, and URL/category gates. Existing
-three international market-row checks also passed. The changes are on
+three international market-row and nine FAVI serializer checks also passed. A generated\nGreek RSS candidate passed the common XML audit. The changes are on
 `feature/feeds-other-channels`; not deployed or submitted to FAVI Greece.
