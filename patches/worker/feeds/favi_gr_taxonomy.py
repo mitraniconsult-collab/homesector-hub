@@ -64,11 +64,21 @@ TAXONOMY_TO_FAVI_GR = {
         "Κήπος > Τραπέζια κήπου", "https://favi.gr/proionta/kathgoria/trapezia-kipou"),
 }
 
+# Confirmed source category errors. Exclude only these product IDs from the
+# automatic Food Storage Containers mapping; an explicit reviewed override can
+# still assign the correct FAVI category later.
+AUTO_CATEGORY_EXCLUSIONS = {
+    "gid://shopify/Product/10980173709579": "gid://shopify/TaxonomyCategory/hg-11-4-6",  # Jarro jar tongs
+    "gid://shopify/Product/8730408747275": "gid://shopify/TaxonomyCategory/hg-11-4-6",  # Klausberg coffee grinder
+}
+
 
 def categories_for_products(products, explicit):
     result = {}
     for product in products:
         taxonomy = (product.get("category") or {}).get("id")
+        if AUTO_CATEGORY_EXCLUSIONS.get(product["id"]) == taxonomy:
+            continue
         match = TAXONOMY_TO_FAVI_GR.get(taxonomy)
         if match:
             result[product["id"]] = {"market": "GR", "verified": True, "path": match[0]}
