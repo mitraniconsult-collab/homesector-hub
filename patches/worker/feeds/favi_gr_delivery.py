@@ -29,6 +29,17 @@ def publish_preview(mount):
             or not audit["items"] or audit["unique_ids"] != audit["items"]):
         raise RuntimeError("Incomplete or empty FAVI GR preview")
     store = BlobStore(os.getenv("FEED_BLOB_READ_WRITE_TOKEN", ""), prefix=PREFIX)
+    old, etag = store.read(MANIFEST)
+    if old is not None:
+        if not etag:
+            raise RuntimeError("FAVI GR preview pointer lacks storage ETag")
+        previous = json.loads(old)
+        if (previous.get("purpose") != "partial_preview"
+                or previous.get("market") != "GR"
+                or not isinstance(previous.get("items"), int)):
+            raise RuntimeError("Invalid previous FAVI GR preview pointer")
+        if audit["items"] < previous["items"]:
+            raise RuntimeError("FAVI GR preview count declined; keep previous pointer")
     xml_digest = hashlib.sha256(xml).hexdigest()
     report_bytes = json.dumps(report, ensure_ascii=False, sort_keys=True).encode()
     report_digest = hashlib.sha256(report_bytes).hexdigest()
@@ -53,9 +64,6 @@ def publish_preview(mount):
         "approved_by_favi": False, "destination_subscriptions_changed": False,
     }
     pointer = json.dumps(manifest, ensure_ascii=False).encode()
-    old, etag = store.read(MANIFEST)
-    if old is not None and not etag:
-        raise RuntimeError("FAVI GR preview pointer lacks storage ETag")
     store.put(MANIFEST, pointer, "application/json", overwrite=old is not None, etag=etag)
     checked, _ = store.read(MANIFEST)
     if checked != pointer:
@@ -67,3 +75,4 @@ def publish_preview(mount):
         "report_url": "https://hub.homesector.bg/feeds/favi/GR-preview-report.json",
         "approved_by_favi": False, "destination_subscriptions_changed": False,
     }
+
