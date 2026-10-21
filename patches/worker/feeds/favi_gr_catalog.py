@@ -78,7 +78,11 @@ def finalize(journal, root, store=None, token=None):
     if not meta["finished"] or len(products) != meta["products"]:
         raise RuntimeError("Incomplete Greek source catalog")
     categories, urls = _inputs(root)
-    xml, report = create_preview(products, categories, urls)
+    greek_products = [p for p in products if p.get("published_GR") is True
+                      and p.get("status") == "ACTIVE"]
+    xml, report = create_preview(greek_products, categories, urls)
+    report["source_products"] = meta["products"]
+    report["greek_published_products"] = len(greek_products)
     report["source_complete"] = True
     report["sha256"] = hashlib.sha256(xml).hexdigest()
     if report["xml_items"]:
