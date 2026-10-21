@@ -87,6 +87,11 @@ def finalize(journal, root, store=None, token=None):
     report["top_source_product_types"] = Counter(
         str(p.get("productType") or "").strip() for p in greek_products
     ).most_common(50)
+    report["taxonomy_observed_products"] = sum(bool(p.get("category")) for p in greek_products)
+    report["top_shopify_taxonomy"] = Counter(
+        ((p.get("category") or {}).get("id"), (p.get("category") or {}).get("fullName"))
+        for p in greek_products if p.get("category")
+    ).most_common(50)
     report["source_complete"] = True
     report["sha256"] = hashlib.sha256(xml).hexdigest()
     if report["xml_items"]:
