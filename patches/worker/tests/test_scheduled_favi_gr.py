@@ -146,6 +146,35 @@ class ScheduledGreekFeedTests(unittest.TestCase):
         self.assertEqual(old["status"], "stale_generation_rejected")
         self.assertFalse(publications)
 
+    def test_deadline_yield_preserves_generation_without_publication(self):
+        calls, publications = [], []
+
+        def scan(**kwargs):
+            calls.append(kwargs["source_folder"])
+            if len(calls) == 1:
+                return {"status": "yielded", "stage": "direct_urls",
+                        "source_products": 19303}
+            folder = kwargs["source_folder"]
+            folder.mkdir(parents=True, exist_ok=True)
+            report = {"status": "unpublished_preview", "source_complete": True,
+                      "source_products": 19303, "xml_items": 300}
+            (folder / "favi-gr-report.json").write_text(json.dumps(report))
+            (folder / "favi-gr-private.xml").write_text("xml")
+            return report
+
+        def publish(mount, source_folder):
+            publications.append(source_folder)
+            return {"status": "partial_preview_uploaded", "items": 300}
+
+        with self._modules(scan, publish):
+            first = scheduled_favi_gr.tick(self.root, now=1000, deadline=1050)
+            self.assertEqual(first["status"], "yielded")
+            self.assertFalse(publications)
+            second = scheduled_favi_gr.tick(self.root, now=1100, deadline=1300)
+        self.assertEqual(second["status"], "partial_preview_uploaded")
+        self.assertEqual(calls[0], calls[1])
+        self.assertEqual(publications, [calls[1]])
+
 
 if __name__ == "__main__":
     unittest.main()
