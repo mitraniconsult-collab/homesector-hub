@@ -23,7 +23,8 @@ def tick(mount, should_stop=lambda: False, deadline=None):
         # Publish the completed private run without repeating its Shopify scan.
         receipt = state.get("receipt") or {}
         if (os.getenv("FEED_FAVI_RO_PREVIEW_PUBLISH") == "yes"
-                and receipt.get("status") == "private_complete"
+                and receipt.get("status") in ("private_complete", "partial_preview_uploaded")
+                and receipt.get("report_version") != 2
                 and state.get("last_generation")):
             folder = root / "favi-ro-runs" / state["last_generation"] / "favi-ro-source"
             report = json.loads((folder / "favi-ro-report.json").read_text(encoding="utf-8"))
