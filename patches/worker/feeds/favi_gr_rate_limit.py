@@ -6,6 +6,7 @@ interpret a throttled response as an invalid product URL.
 import threading
 import time
 import os
+from urllib.parse import urljoin, urlparse
 
 import requests
 
@@ -36,6 +37,45 @@ class StorefrontLimiter:
         except ValueError:
             return 0.0
 
+    @staticmethod
+    def _crawler_headers(url):
+        # Shopify merchant crawler signatures are scoped to a single domain.
+        market = {"homesector.gr": "GR", "homesector.ro": "RO",
+                  "homesector.hu": "HU"}.get(urlparse(url).hostname)
+        if not market:
+            return None
+        signature_input = os.getenv(f"FEED_CRAWLER_{market}_SIGNATURE_INPUT", "")
+        signature = os.getenv(f"FEED_CRAWLER_{market}_SIGNATURE", "")
+        if bool(signature_input) != bool(signature):
+            raise ValueError(f"Incomplete {market} crawler signature configuration")
+        if not signature:
+            return None
+        if "\n" in signature_input + signature or "\r" in signature_input + signature:
+            raise ValueError(f"Invalid {market} crawler signature configuration")
+        return {"Signature-Input": signature_input, "Signature": signature,
+                "Signature-Agent": '"https://shopify.com"'}
+
+    def _request(self, url, kwargs):
+        crawler_headers = self._crawler_headers(url)
+        if not crawler_headers:
+            return requests.get(url, **kwargs)
+        # requests forwards custom headers across redirects. Never send a
+        # domain-scoped signature to another host, even on an HTTP redirect.
+        options = dict(kwargs)
+        options["headers"] = {**(kwargs.get("headers") or {}), **crawler_headers}
+        options["allow_redirects"] = False
+        original_host = urlparse(url).hostname
+        for _ in range(5):
+            response = requests.get(url, **options)
+            if response.status_code not in (301, 302, 303, 307, 308):
+                return response
+            target = urljoin(url, response.headers.get("Location", ""))
+            parsed = urlparse(target)
+            if parsed.scheme != "https" or parsed.hostname != original_host:
+                return response
+            url = target
+        return response
+
     def get(self, url, **kwargs):
         # Requests from both direct and collection URL stages share this lock.
         # The thread pools remain bounded but never burst at the storefront.
@@ -46,7 +86,7 @@ class StorefrontLimiter:
                 delay = self.next_at - self.clock()
                 if delay > 0:
                     self.sleep(delay)
-                response = requests.get(url, **kwargs)
+                response = self._request(url, kwargs)
                 self.next_at = self.clock() + self.interval
                 if response.status_code != 429:
                     self.successes += 1

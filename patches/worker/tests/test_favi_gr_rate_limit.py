@@ -85,6 +85,35 @@ class StorefrontRateLimitTests(unittest.TestCase):
             clock.sleep(600)
             self.assertEqual(limiter.get("https://homesector.ro/products/chair", timeout=5).status_code, 200)
 
+    def test_merchant_signature_is_domain_scoped_and_never_leaks_on_redirect(self):
+        clock = Clock()
+        limiter = StorefrontLimiter(clock=clock.monotonic, sleep=clock.sleep)
+        redirect = Response(302)
+        redirect.headers["Location"] = "https://other.example/products/chair"
+        with patch.dict("os.environ", {
+                "FEED_CRAWLER_GR_SIGNATURE_INPUT": "sig1=(\"@method\");created=1",
+                "FEED_CRAWLER_GR_SIGNATURE": "sig1=:secret:",
+                "FEED_CRAWLER_RO_SIGNATURE_INPUT": "sig1=(\"@method\");created=2",
+                "FEED_CRAWLER_RO_SIGNATURE": "sig1=:different:",
+        }), patch("feeds.favi_gr_rate_limit.requests.get",
+                  side_effect=[redirect, Response(200)]) as get:
+            self.assertEqual(limiter.get("https://homesector.gr/products/chair").status_code, 302)
+            self.assertEqual(limiter.get("https://homesector.ro/products/chair").status_code, 200)
+        self.assertEqual(get.call_count, 2)
+        self.assertEqual(get.call_args_list[0].kwargs["headers"]["Signature"], "sig1=:secret:")
+        self.assertEqual(get.call_args_list[1].kwargs["headers"]["Signature"], "sig1=:different:")
+        self.assertEqual(get.call_args_list[0].kwargs["headers"]["Signature-Agent"],
+                         '"https://shopify.com"')
+        self.assertFalse(get.call_args_list[0].kwargs["allow_redirects"])
+
+    def test_incomplete_merchant_signature_stops_before_request(self):
+        limiter = StorefrontLimiter()
+        with patch.dict("os.environ", {"FEED_CRAWLER_GR_SIGNATURE": "sig1=:secret:"},
+                        clear=True), patch("feeds.favi_gr_rate_limit.requests.get") as get:
+            with self.assertRaisesRegex(ValueError, "Incomplete GR crawler signature"):
+                limiter.get("https://homesector.gr/products/chair")
+        get.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
