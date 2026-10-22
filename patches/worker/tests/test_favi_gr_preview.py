@@ -96,7 +96,7 @@ def test_verified_greek_fragrances_distinguish_variants_without_splitting_group(
     assert all(item.find(G + "color") is None for item in items)
 
 
-def test_missing_or_outdated_option_translation_never_invents_detail():
+def test_numeric_dimensions_are_safe_without_option_translation():
     p, t, _, c = sample()
     for variant, size in zip(p["variants"]["nodes"], ("120x170 cm", "160x230 cm")):
         variant["selectedOptions"] = [{"name": "Размер", "value": size}]
@@ -109,8 +109,23 @@ def test_missing_or_outdated_option_translation_never_invents_detail():
                                  translated_variant_map=greek)
     items = ET.fromstring(xml).findall("./channel/item")
     assert report["xml_items"] == 2
+    assert {item.findtext("title") for item in items} == {
+        "Καρέκλα τραπεζαρίας Cleon — Μέγεθος: 120x170 cm",
+        "Καρέκλα τραπεζαρίας Cleon — Μέγεθος: 160x230 cm",
+    }
+
+
+def test_untranslated_descriptive_option_is_not_exported():
+    p, t, _, c = sample()
+    for variant, design in zip(p["variants"]["nodes"], ("Цвете", "Мече")):
+        variant["selectedOptions"] = [{"name": "Дизайн", "value": design}]
+    greek = {"gid://shopify/ProductVariant/17": [],
+             "gid://shopify/ProductVariant/18": [
+                 {"key": "option1", "value": "Αρκούδα", "outdated": True}]}
+    xml, _ = create_preview([p], c, {PRODUCT_ID}, translated_map=t,
+                            translated_variant_map=greek)
+    items = ET.fromstring(xml).findall("./channel/item")
     assert {item.findtext("title") for item in items} == {"Καρέκλα τραπεζαρίας Cleon"}
-    assert all("Μέγεθος" not in item.findtext("description") for item in items)
 
 
 def test_translated_size_uses_its_option_position_after_color():
