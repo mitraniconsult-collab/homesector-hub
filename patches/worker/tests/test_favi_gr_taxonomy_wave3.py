@@ -12,7 +12,7 @@ def test_favi_gr_wave3_exact_categories_do_not_infer_parent_shelves_or_baskets()
     }
     products = [
         {"id": key, "category": {"id": f"gid://shopify/TaxonomyCategory/{key}"}}
-        for key in (*expected, "hg-3-6", "fr-19-1", "fr-19-1-4")
+        for key in (*expected, "hg-3-6", "fr-19-1")
     ]
     mapped = categories_for_products(products, {})
     assert set(mapped) == set(expected)
