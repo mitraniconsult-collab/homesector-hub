@@ -10,6 +10,7 @@ from pathlib import Path
 
 from .blob_delivery import BlobStore
 from .xml_audit import validate_xml
+from .favi_gr_audit import audit_favi_gr
 
 PREFIX = "feeds/favi-gr/"
 MANIFEST = PREFIX + "current-preview.json"
@@ -27,9 +28,13 @@ def publish_preview(mount, source_folder=None):
     xml = (folder / "favi-gr-private.xml").read_bytes()
     report = json.loads((folder / "favi-gr-report.json").read_text(encoding="utf-8"))
     audit = validate_xml(xml, "GR", max_issues=0)
+    favi_audit = audit_favi_gr(xml)
     if (not report.get("source_complete") or report.get("xml_items") != audit["items"]
-            or not audit["items"] or audit["unique_ids"] != audit["items"]):
-        raise RuntimeError("Incomplete or empty FAVI GR preview")
+            or not audit["passed"] or audit["unique_ids"] != audit["items"]
+            or favi_audit["items"] != audit["items"] or not favi_audit["passed"]):
+        raise RuntimeError("Incomplete or invalid FAVI GR preview: "
+                           + json.dumps(favi_audit["issues"], sort_keys=True))
+    report["favi_gr_preflight_audit"] = favi_audit
     store = BlobStore(os.getenv("FEED_BLOB_READ_WRITE_TOKEN", ""), prefix=PREFIX)
     old, etag = store.read(MANIFEST)
     if old is not None:
