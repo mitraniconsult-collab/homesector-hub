@@ -5,7 +5,8 @@ import time
 import uuid
 from pathlib import Path
 
-from .scheduled_favi_gr import MAX_SCAN_AGE_SECONDS, save
+from .scheduled_favi_gr import (MAX_SCAN_AGE_SECONDS, completed_source_expired,
+                                save, source_is_fresh)
 
 
 def tick(mount, should_stop=lambda: False, deadline=None):
@@ -30,6 +31,12 @@ def tick(mount, should_stop=lambda: False, deadline=None):
     if should_stop() or time.time() >= deadline:
         return {"status": "yielded", "generation": generation}
     folder = root / "favi-hu-runs" / generation / "favi-hu-source"
+    if completed_source_expired(folder, time.time()):
+        state.update(generation=None, rejected_generation=generation,
+                     last_error="StaleSource", next_run_at=time.time() + 300)
+        save(path, state)
+        return {"status": "stale_source_restarting", "generation": generation,
+                "next_run_at": state["next_run_at"]}
     try:
         from .favi_hu_catalog import execute
         report = execute(batch_limit=int(os.getenv("FEED_HU_PAGE_LIMIT", "100")),
@@ -47,13 +54,11 @@ def tick(mount, should_stop=lambda: False, deadline=None):
                     "source_products": report.get("source_products")}
         if not report.get("source_complete"):
             raise RuntimeError("Incomplete HU source generation")
-        if time.time() - state["started_at"] > MAX_SCAN_AGE_SECONDS:
+        if not source_is_fresh(state["started_at"], report, time.time()):
             state.update(generation=None, rejected_generation=generation,
                          last_error="StaleGeneration", next_run_at=time.time() + 300)
             save(path, state)
             return {"status": "stale_generation_rejected", "generation": generation}
-        # Publication requires a separately reviewed URL, Blob pointer, and
-        # count baseline. A finished scan is kept private until that gate exists.
         receipt = {"status": "private_complete", "items": report["xml_items"]}
         state.update(generation=None, last_generation=generation,
                      last_success_at=time.time(), last_items=receipt["items"],
