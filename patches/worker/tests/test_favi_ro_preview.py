@@ -3,6 +3,7 @@ from xml.etree import ElementTree as ET
 
 from feeds.favi_ro_preview import create_preview
 from feeds.markets_catalog import catalog_query
+from feeds.favi_ro_taxonomy import categories_for_products
 
 G = "{http://base.google.com/ns/1.0}"
 PID = "gid://shopify/Product/12"
@@ -67,3 +68,13 @@ def test_ro_source_query_uses_romanian_context_and_includes_taxonomy():
     assert "country: GR" not in query
     assert "category { id fullName }" in query
     assert "products(first: 25" in query
+
+
+def test_romanian_categories_use_reviewed_leaves_and_hold_mixed_plates():
+    products = [
+        {"id": "p1", "category": {"id": "gid://shopify/TaxonomyCategory/fr-24-1-1"}},
+        {"id": "p2", "category": {"id": "gid://shopify/TaxonomyCategory/hg-11-10-4-3"}},
+    ]
+    result = categories_for_products(products)
+    assert result["p1"]["path"] == "mobilă > mese și măsuțe > măsuțe de cafea"
+    assert "p2" not in result

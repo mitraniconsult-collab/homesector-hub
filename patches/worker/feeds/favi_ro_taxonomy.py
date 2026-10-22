@@ -26,6 +26,21 @@ TAXONOMY_TO_FAVI_RO = {
     "gid://shopify/TaxonomyCategory/hg-11-2-1-6": "bucătărie > accesorii coacere > forme pentru copt",
     "gid://shopify/TaxonomyCategory/hg-11-2-1-3": "bucătărie > accesorii coacere > forme pentru copt",
     "gid://shopify/TaxonomyCategory/hg-11-2-1-8": "bucătărie > accesorii coacere > tăvi de copt",
+    "gid://shopify/TaxonomyCategory/fr-15-6-5": "grădină > mese de grădină",
+    "gid://shopify/TaxonomyCategory/fr-15-6-12": "grădină > mese de grădină",
+    "gid://shopify/TaxonomyCategory/fr-15-6-3": "grădină > mese de grădină",
+    "gid://shopify/TaxonomyCategory/fr-15-4-2": "grădină > scaune de grădină",
+    "gid://shopify/TaxonomyCategory/fr-15-4-5": "grădină > șezlonguri de grădină și terasă",
+    "gid://shopify/TaxonomyCategory/fr-24-1-1": "mobilă > mese și măsuțe > măsuțe de cafea",
+    "gid://shopify/TaxonomyCategory/fr-24-6": "mobilă > mese și măsuțe > noptiere",
+    "gid://shopify/TaxonomyCategory/fr-4-5": "mobilă > dulapuri și comode > comode",
+    "gid://shopify/TaxonomyCategory/fr-4-14-1-1": "mobilă > dulapuri și comode > dulapuri de baie",
+    "gid://shopify/TaxonomyCategory/fr-7-1-1": "mobilă > mobilier de șezut > fotolii",
+    "gid://shopify/TaxonomyCategory/hg-3-40-2": "decorațiuni > sfeșnice și lumânări > lumânări",
+    "gid://shopify/TaxonomyCategory/hg-3-4-2-3": "decorațiuni > tablouri",
+    "gid://shopify/TaxonomyCategory/hg-3-17-4": "decorațiuni > ceasuri",
+    "gid://shopify/TaxonomyCategory/hg-3-52": "decorațiuni > rame foto",
+    "gid://shopify/TaxonomyCategory/hg-10-18-4-1": "bucătărie > organizare și curățenie > coșuri de gunoi",
 }
 
 
