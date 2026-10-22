@@ -31,6 +31,8 @@ def publish_preview(mount, source_folder):
             or audit["unique_ids"] != audit["items"] or not favi_audit["passed"]):
         raise RuntimeError("Incomplete or invalid FAVI RO preview")
     report["favi_ro_preflight_audit"] = favi_audit
+    report["published"] = True
+    report["status"] = "partial_preview_published"
     store = BlobStore(os.getenv("FEED_BLOB_READ_WRITE_TOKEN", ""), prefix=PREFIX)
     old, etag = store.read(MANIFEST)
     if old is not None:
@@ -67,6 +69,7 @@ def publish_preview(mount, source_folder):
     checked, _ = store.read(MANIFEST)
     if checked != pointer:
         raise RuntimeError("FAVI RO preview pointer verification failed")
-    return {"status": "partial_preview_uploaded", "items": audit["items"],
+    return {"status": "partial_preview_uploaded", "report_version": 2,
+            "items": audit["items"],
             "sha256": xml_hash, "approved_by_favi": False,
             "destination_subscriptions_changed": False}
