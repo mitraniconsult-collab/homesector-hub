@@ -1,6 +1,32 @@
 # Homesector Feed Manager — execution tracker
 
-Updated: 2026-10-20. This file tracks *verified facts* versus untested implementation.
+Updated: 2026-10-22. Latest checkpoint below supersedes older historical entries.
+
+## Latest checkpoint — 2026-10-22 12:40 UTC
+
+- Worker `srv-dbbm4fom7kps73fecs40` is live at `6a9283d594b39fc931fc527a3ab3805b48fac4fb`.
+  The 1 GB persistent volume filled during the 13,227-item BG refresh: all three
+  jobs reported `OSError` after 12:05 UTC. Safe retention removed two completed
+  old BG run folders at 12:38:54 UTC, preserving the active and last published
+  generations. The resumed BG run published its comparison at 12:40:21 UTC,
+  SHA256 `305f629f85747ceb47790d3a3cca13b6146f3ddd95655cb71cee9afe32447d50`,
+  with 13,227 variants and no content issues. FAVI BG private preview grew from
+  85 to 894 items; its ID/category/backorder gates and FAVI approval still apply.
+- GR active source journal contains 19,303 products; direct URL checkpoint 920.
+  Public report still reflects the 2026-10-21 2,025-item preview. RO source
+  journal contains 19,303 products, translations are complete, URL checkpoint
+  220; public report remains 503 until private audit and explicit preview gate.
+  Both scans must resume after BG and finish before the six-hour source age
+  guard; do not publish a stale generation merely to increase item count.
+- HU private builder and tests are committed, but not scheduled/deployed. FAVI BG
+  remains private. Google BG is retained as the shared source/diagnostic, and
+  the Hub UI now labels it accordingly; it is not a FAVI BG submission URL.
+- FAVI email evidence: on 2026-05-14 Homesector sent the current supplied
+  Feedhub Google URL to Petya as a FAVI feed, but FAVI described converting the
+  supplied XML internally in an earlier 2026-01-27 email. Therefore the
+  source IDs are useful continuity candidates, not proven internal FAVI IDs.
+  Avoid silently migrating punctuated legacy IDs. User will submit finished
+  feeds; this project has not changed FAVI subscriptions.
 
 ## Current execution
 
