@@ -3,6 +3,7 @@ from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import quote, unquote, urlparse
 import requests
+from .favi_gr_rate_limit import storefront_limiter
 
 
 def _translated_handle(translations):
@@ -17,7 +18,7 @@ def _check_handle(handle):
         return False, "invalid_handle", None
     expected = "/products/" + handle
     try:
-        response = requests.get("https://homesector.gr/products/" + quote(handle, safe="-"),
+        response = storefront_limiter.get("https://homesector.gr/products/" + quote(handle, safe="-"),
                                 timeout=15, allow_redirects=True,
                                 headers={"User-Agent": "HomesectorFeedVerifier/1.0"})
         if response.status_code != 200:
