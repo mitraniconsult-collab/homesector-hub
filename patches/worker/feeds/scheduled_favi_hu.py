@@ -20,6 +20,23 @@ def tick(mount, should_stop=lambda: False, deadline=None):
     if now < state.get("retry_at", 0):
         return {"status": "retry_wait", "retry_at": state["retry_at"]}
     if not state.get("generation"):
+        receipt = state.get("receipt") or {}
+        if (os.getenv("FEED_FAVI_HU_PREVIEW_PUBLISH") == "yes"
+                and receipt.get("status") in ("private_complete", "partial_preview_uploaded")
+                and receipt.get("report_version") != 2
+                and state.get("last_generation")):
+            folder = root / "favi-hu-runs" / state["last_generation"] / "favi-hu-source"
+            report = json.loads((folder / "favi-hu-report.json").read_text(encoding="utf-8"))
+            if not report.get("private_audit_passed") or not source_is_fresh(
+                    state["started_at"], report, now):
+                return {"status": "private_preview_expired",
+                        "generation": state["last_generation"]}
+            from .favi_hu_delivery import publish_preview
+            published = publish_preview(root, folder)
+            state.update(receipt=published, last_success_at=time.time(),
+                         last_items=published["items"])
+            save(path, state)
+            return {**published, "generation": state["last_generation"]}
         if now < state.get("next_run_at", 0):
             return {"status": "waiting", "next_run_at": state["next_run_at"]}
         state.update(generation=uuid.uuid4().hex, started_at=now)
@@ -59,7 +76,11 @@ def tick(mount, should_stop=lambda: False, deadline=None):
                          last_error="StaleGeneration", next_run_at=time.time() + 300)
             save(path, state)
             return {"status": "stale_generation_rejected", "generation": generation}
-        receipt = {"status": "private_complete", "items": report["xml_items"]}
+        if os.getenv("FEED_FAVI_HU_PREVIEW_PUBLISH") == "yes":
+            from .favi_hu_delivery import publish_preview
+            receipt = publish_preview(root, folder)
+        else:
+            receipt = {"status": "private_complete", "items": report["xml_items"]}
         state.update(generation=None, last_generation=generation,
                      last_success_at=time.time(), last_items=receipt["items"],
                      next_run_at=time.time() + 86400, last_error=None,
