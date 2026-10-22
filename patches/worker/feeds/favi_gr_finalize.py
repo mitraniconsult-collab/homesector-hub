@@ -14,7 +14,7 @@ from .favi_gr_urls import verify_market_urls
 from .shopify_auth import get_admin_token
 from .shopify_translations import fetch_translations, fetch_variant_translations
 
-VERSION = 1
+VERSION = 2
 TRANSLATION_BATCH = 50
 URL_BATCH = 20
 VARIANT_BATCH = 50
@@ -66,9 +66,7 @@ def _variant_ids(products, verified_ids):
     return list(dict.fromkeys(
         v["id"] for product in products if product["id"] in verified_ids
         for v in (product.get("variants") or {}).get("nodes", [])
-        if v.get("id") and any(str(option.get("name", "")).casefold()
-                               in ("color", "colour", "цвят", "цвет")
-                               for option in v.get("selectedOptions") or [])
+        if v.get("id") and v.get("selectedOptions")
     ))
 
 

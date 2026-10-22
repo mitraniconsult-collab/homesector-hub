@@ -100,6 +100,16 @@ class StagedFinalizeTests(unittest.TestCase):
                 self.assertEqual(calls["direct"], ["p1", "p2", "p3"])
                 self.assertEqual(calls["collections"], ["p2"])
                 self.assertEqual(calls["variants"], ["v1", "v2", "v3"])
+                mixed = [
+                    {"id": "p1", "variants": {"nodes": [
+                        {"id": "aroma", "selectedOptions": [{"name": "Аромат", "value": "Роза"}]},
+                        {"id": "size", "selectedOptions": [{"name": "Размер", "value": "120x170 cm"}]},
+                    ]}},
+                    {"id": "p2", "variants": {"nodes": [
+                        {"id": "unverified", "selectedOptions": [{"name": "Аромат"}]},
+                    ]}},
+                ]
+                self.assertEqual(module._variant_ids(mixed, {"p1"}), ["aroma", "size"])
 
 
 if __name__ == "__main__":

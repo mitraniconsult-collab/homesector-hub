@@ -37,7 +37,9 @@ def normalize_market(product, country):
         color = options[color_index - 1].get("value") if color_index else None
         output.append({
             "id": variant.get("id"), "item_group_id": group_feed_id(product.get("id")),
-            "color": color, "color_option_index": color_index, "title": (
+            "color": color, "color_option_index": color_index,
+            "variant_options": [{"name": o.get("name"), "value": o.get("value")}
+                                for o in options], "title": (
                 (variant.get("displayName") or product.get("title") or "").removesuffix(" - Default Title")
                 if country == "BG" else product.get("title")),
             "description": plain_text(product.get("descriptionHtml")),

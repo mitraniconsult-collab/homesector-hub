@@ -71,3 +71,66 @@ def test_missing_verified_link_or_category_blocks_greek_offer():
     _, report = create_preview([p], {}, {PRODUCT_ID}, translated_map=t,
                                translated_variant_map=v)
     assert report["preflight_exclusions"]["unverified_favi_category"] == 2
+
+
+def test_verified_greek_fragrances_distinguish_variants_without_splitting_group():
+    p, t, _, c = sample()
+    for variant, aroma in zip(p["variants"]["nodes"], ("Роза", "Жасмин")):
+        variant["selectedOptions"] = [{"name": "Аромат", "value": aroma}]
+    greek = {
+        "gid://shopify/ProductVariant/17": [
+            {"key": "option1", "value": "Τριαντάφυλλο", "outdated": False}],
+        "gid://shopify/ProductVariant/18": [
+            {"key": "option1", "value": "Γιασεμί", "outdated": False}],
+    }
+    xml, report = create_preview([p], c, {PRODUCT_ID}, translated_map=t,
+                                 translated_variant_map=greek)
+    items = ET.fromstring(xml).findall("./channel/item")
+    assert report["xml_items"] == 2
+    assert {item.findtext(G + "item_group_id") for item in items} == {"shopifyp12"}
+    assert {item.findtext("title") for item in items} == {
+        "Καρέκλα τραπεζαρίας Cleon — Άρωμα: Τριαντάφυλλο",
+        "Καρέκλα τραπεζαρίας Cleon — Άρωμα: Γιασεμί",
+    }
+    assert all("Άρωμα:" in item.findtext("description") for item in items)
+    assert all(item.find(G + "color") is None for item in items)
+
+
+def test_missing_or_outdated_option_translation_never_invents_detail():
+    p, t, _, c = sample()
+    for variant, size in zip(p["variants"]["nodes"], ("120x170 cm", "160x230 cm")):
+        variant["selectedOptions"] = [{"name": "Размер", "value": size}]
+    greek = {
+        "gid://shopify/ProductVariant/17": [],
+        "gid://shopify/ProductVariant/18": [
+            {"key": "option1", "value": "160x230 cm", "outdated": True}],
+    }
+    xml, report = create_preview([p], c, {PRODUCT_ID}, translated_map=t,
+                                 translated_variant_map=greek)
+    items = ET.fromstring(xml).findall("./channel/item")
+    assert report["xml_items"] == 2
+    assert {item.findtext("title") for item in items} == {"Καρέκλα τραπεζαρίας Cleon"}
+    assert all("Μέγεθος" not in item.findtext("description") for item in items)
+
+
+def test_translated_size_uses_its_option_position_after_color():
+    p, t, _, c = sample()
+    for variant, size in zip(p["variants"]["nodes"], ("120x170 cm", "160x230 cm")):
+        variant["selectedOptions"].append({"name": "Размер", "value": size})
+    greek = {
+        "gid://shopify/ProductVariant/17": [
+            {"key": "option1", "value": "Καφέ"},
+            {"key": "option2", "value": "120x170 cm", "outdated": False}],
+        "gid://shopify/ProductVariant/18": [
+            {"key": "option1", "value": "Μπεζ"},
+            {"key": "option2", "value": "160x230 cm", "outdated": False}],
+    }
+    xml, report = create_preview([p], c, {PRODUCT_ID}, translated_map=t,
+                                 translated_variant_map=greek)
+    items = ET.fromstring(xml).findall("./channel/item")
+    assert report["xml_items"] == 2
+    assert {item.findtext("title") for item in items} == {
+        "Καρέκλα τραπεζαρίας Cleon — Μέγεθος: 120x170 cm",
+        "Καρέκλα τραπεζαρίας Cleon — Μέγεθος: 160x230 cm",
+    }
+    assert {item.findtext(G + "color") for item in items} == {"Καφέ", "Μπεζ"}

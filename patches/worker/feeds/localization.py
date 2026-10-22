@@ -47,7 +47,8 @@ def localize_variant_color(row, variant_translations, market):
         output["verified_variant_color"] = True
         return output
     values = {entry.get("key"): str(entry.get("value") or "").strip()
-              for entry in (variant_translations or []) if entry}
+              for entry in (variant_translations or [])
+              if entry and entry.get("outdated") is not True}
     value = values.get("option" + str(option_index), "")
     # Never send the Bulgarian source label to an international FAVI catalog.
     output["color"] = None
@@ -58,4 +59,48 @@ def localize_variant_color(row, variant_translations, market):
         output["verified_variant_color"] = True
     else:
         output["verified_variant_color"] = False
+    return output
+
+
+# The option name comes from Shopify's source catalog; only the option value
+# may come from Shopify's actual Greek variant translations. Unknown options
+# remain untouched instead of creating an unverified Greek label.
+_GR_VARIANT_OPTION_LABELS = {
+    "аромат": "Άρωμα", "fragrance": "Άρωμα", "scent": "Άρωμα",
+    "размер": "Μέγεθος", "size": "Μέγεθος",
+    "материал": "Υλικό", "material": "Υλικό",
+}
+_GR_COLOR_OPTIONS = {"color", "colour", "цвят", "цвет"}
+
+
+def localize_variant_details(row, variant_translations, market):
+    """Describe a variant using only its current Greek Shopify option values."""
+    output = dict(row)
+    if market != "GR" or output.get("verified_locale") != "el":
+        return output
+    values = {entry.get("key"): str(entry.get("value") or "").strip()
+              for entry in (variant_translations or [])
+              if entry and entry.get("outdated") is not True}
+    details = []
+    for index, option in enumerate(row.get("variant_options") or [], start=1):
+        source_name = str(option.get("name") or "").strip().casefold()
+        if source_name in _GR_COLOR_OPTIONS:
+            continue
+        label = _GR_VARIANT_OPTION_LABELS.get(source_name)
+        source_value = str(option.get("value") or "").strip()
+        value = values.get("option" + str(index), "")
+        if not label or not source_value or not value:
+            continue
+        # Greek text is required for descriptive choices. Numeric dimensions
+        # are language neutral, but still require an explicit Greek translation.
+        greek = any("\u0370" <= character <= "\u03ff" for character in value)
+        if not greek and not (label == "Μέγεθος" and
+                              all(c.isdigit() or c in ".,xX× /-cmCM" for c in value)):
+            continue
+        details.append(f"{label}: {value}")
+    if details:
+        suffix = " · ".join(details)
+        output["title"] = str(output.get("title") or "").rstrip() + " — " + suffix
+        output["description"] = (str(output.get("description") or "").rstrip() +
+                                 " " + suffix + ".").strip()
     return output

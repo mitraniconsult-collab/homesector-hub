@@ -5,7 +5,8 @@ derived from a translated title or guessed from the base Shopify handle.
 """
 from collections import Counter
 from .channel_quality import check_product
-from .localization import apply_verified_translations, localize_variant_color
+from .localization import (apply_verified_translations, localize_variant_color,
+                           localize_variant_details)
 from .markets_normalize import normalize_market
 from .shopify_translations import fetch_translations, fetch_variant_translations
 from .targets import enabled
@@ -27,9 +28,7 @@ def prepare_market_rows(products, market, channel, verified_url_ids=None,
     if market == "GR" and channel == "favi" and translated_variant_map is None:
         ids = [v["id"] for p in products if p.get("id") in verified_url_ids
                for v in (p.get("variants") or {}).get("nodes", [])
-               if v.get("id") and any(str(o.get("name", "")).casefold() in
-                                      ("color", "colour", "цвят", "цвет")
-                                      for o in v.get("selectedOptions") or [])]
+               if v.get("id") and v.get("selectedOptions")]
         translated_variant_map = fetch_variant_translations(ids, market)
     translated_variant_map = translated_variant_map or {}
     category_by_product = category_by_product or {}
@@ -45,6 +44,8 @@ def prepare_market_rows(products, market, channel, verified_url_ids=None,
                 url_verified=(product["id"] in verified_url_ids))
             if market == "GR" and channel == "favi":
                 row = localize_variant_color(
+                    row, translated_variant_map.get(row["id"], []), market)
+                row = localize_variant_details(
                     row, translated_variant_map.get(row["id"], []), market)
             if channel == "favi":
                 category = category_by_product.get(product["id"], {})

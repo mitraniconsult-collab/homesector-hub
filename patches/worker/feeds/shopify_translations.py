@@ -93,7 +93,7 @@ def fetch_variant_translations(variant_ids, market, store=None, token=None,
         batch = ids[start:start + BATCH_SIZE]
         vars_decl = ", ".join(f"$v{i}: ID!" for i in range(len(batch)))
         fields = " ".join(
-            f'v{i}: productVariant(id: $v{i}) {{ id translations(locale: "{LOCALES[market]}") {{ key value }} }}'
+            f'v{i}: productVariant(id: $v{i}) {{ id translations(locale: "{LOCALES[market]}") {{ key value outdated }} }}'
             for i in range(len(batch)))
         query = f"query FeedVariantTranslations({vars_decl}) {{ {fields} }}"
         values = {f"v{i}": gid for i, gid in enumerate(batch)}
