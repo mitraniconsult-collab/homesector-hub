@@ -24,7 +24,8 @@ def test_ro_url_throttle_keeps_translations_and_cursor(tmp_path, monkeypatch):
 
     def translations(ids, **kwargs):
         calls["translations"] += 1
-        return {ids[0]: {"RO": [{"key": "title", "value": "Oglindă"}]}}
+        return {ids[0]: {"RO": [{"key": "title", "value": "Oglindă"},
+                                {"key": "body_html", "value": "Descriere"}]}}
 
     def urls(*args, **kwargs):
         calls["urls"] += 1
@@ -56,7 +57,9 @@ def test_incomplete_ro_translation_batch_retries_same_batch(tmp_path, monkeypatc
 
     def translations(ids, **kwargs):
         calls.append(ids)
-        return {} if len(calls) == 1 else {"p1": {"RO": []}}
+        return {} if len(calls) == 1 else {"p1": {"RO": [
+            {"key": "title", "value": "Titlu"},
+            {"key": "body_html", "value": "Descriere"}]}}
 
     monkeypatch.setattr(finalize, "fetch_translations", translations)
     monkeypatch.setattr(finalize, "verify_market_urls", lambda *a, **kw: (
@@ -69,3 +72,23 @@ def test_incomplete_ro_translation_batch_retries_same_batch(tmp_path, monkeypatc
                               "shop.myshopify.com", "token", float("inf"), lambda: False)
     assert result["status"] == "ready"
     assert calls == [["p1"], ["p1"]]
+
+
+def test_untranslated_product_does_not_open_storefront_or_collection(tmp_path, monkeypatch):
+    product = {"id": "p1", "handle": "one", "variants": {"nodes": []}}
+    monkeypatch.setattr(finalize, "fetch_translations",
+                        lambda ids, **kw: {"p1": {"RO": [
+                            {"key": "title", "value": "Titlu"}]}})
+    monkeypatch.setattr(finalize, "verify_market_urls",
+                        lambda products, *a, **kw: ({}, {
+                            "checked": len(products), "verified": 0,
+                            "reasons": {}, "sample_handles": {}})
+                        if not products else pytest.fail("untranslated URL requested"))
+    monkeypatch.setattr(finalize, "verify_collection_urls",
+                        lambda *a, **kw: pytest.fail("untranslated collection requested"))
+    result = finalize.collect(Journal(tmp_path), [product],
+                              {"p1": {"market": "RO", "path": "oglinzi"}},
+                              "shop.myshopify.com", "token", float("inf"), lambda: False)
+    assert result["status"] == "ready"
+    assert result["url_check"]["reasons"]["skipped_unlocalized_copy"] == 1
+    assert result["collection_check"]["checked"] == 0

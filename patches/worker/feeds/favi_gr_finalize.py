@@ -11,6 +11,7 @@ from pathlib import Path
 
 from .favi_gr_collection_urls import verify_collection_urls
 from .favi_gr_urls import verify_market_urls
+from .favi_url_eligibility import has_localized_copy
 from .shopify_auth import get_admin_token
 from .shopify_translations import fetch_translations, fetch_variant_translations
 
@@ -112,10 +113,16 @@ def collect(journal, products, categories, manual_urls, store, token, deadline, 
                 _advance(path, state, "collections")
                 continue
             batch = candidates[index:index + URL_BATCH]
+            eligible = [p for p in batch if has_localized_copy(
+                state["translated_map"], p["id"], "GR")]
             urls, check = verify_market_urls(
-                batch, categories, translated_map=state["translated_map"])
-            if check["checked"] != len(batch):
+                eligible, categories, translated_map=state["translated_map"])
+            if check["checked"] != len(eligible):
                 raise RuntimeError("Incomplete GR direct URL batch")
+            skipped = len(batch) - len(eligible)
+            check["checked"] += skipped
+            check["reasons"]["skipped_unlocalized_copy"] = (
+                check["reasons"].get("skipped_unlocalized_copy", 0) + skipped)
             state["auto_urls"].update(urls)
             aggregate = state["url_check"]
             _accumulate(aggregate, check, ("checked", "verified"))
@@ -126,7 +133,8 @@ def collect(journal, products, categories, manual_urls, store, token, deadline, 
                 sample.extend(handles[:max(0, 3 - len(sample))])
             state["next_index"] += len(batch)
         elif stage == "collections":
-            missing = [p for p in candidates if p["id"] not in state["auto_urls"]]
+            missing = [p for p in candidates if p["id"] not in state["auto_urls"]
+                       and has_localized_copy(state["translated_map"], p["id"], "GR")]
             if index >= len(missing):
                 _advance(path, state, "variants")
                 continue
@@ -154,7 +162,8 @@ def collect(journal, products, categories, manual_urls, store, token, deadline, 
               " checked=" + str(state["next_index"]), flush=True)
     if yielding():
         return paused()
-    missing = [p for p in candidates if p["id"] not in state["auto_urls"]]
+    missing = [p for p in candidates if p["id"] not in state["auto_urls"]
+               and has_localized_copy(state["translated_map"], p["id"], "GR")]
     variants = _variant_ids(candidates, set(manual_urls) | set(state["auto_urls"]) |
                             set(state["collection_urls"]))
     if (set(state["translated_map"]) != set(ids)

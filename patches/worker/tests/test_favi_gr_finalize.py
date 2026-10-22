@@ -21,7 +21,8 @@ class StagedFinalizeTests(unittest.TestCase):
 
         def translations(ids, **kwargs):
             calls["translations"].extend(ids)
-            return {pid: {"GR": [{"key": "title", "value": "τίτλος"}]} for pid in ids}
+            return {pid: {"GR": [{"key": "title", "value": "τίτλος"},
+                                 {"key": "body_html", "value": "περιγραφή"}]} for pid in ids}
 
         def direct(products, categories, translated_map):
             calls["direct"].extend(p["id"] for p in products)

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .favi_gr_urls import verify_market_urls
 from .favi_gr_collection_urls import verify_collection_urls
+from .favi_url_eligibility import has_localized_copy
 from .shopify_translations import fetch_translations, fetch_variant_translations
 
 VERSION = 1
@@ -63,10 +64,16 @@ def collect(journal, products, categories, store, token, deadline, should_stop):
                 advance("collections")
                 continue
             batch = candidates[index:index + 20]
+            eligible = [p for p in batch if has_localized_copy(
+                state["translated_map"], p["id"], "RO")]
             urls, check = verify_market_urls(
-                batch, categories, translated_map=state["translated_map"], market="RO")
-            if check["checked"] != len(batch):
+                eligible, categories, translated_map=state["translated_map"], market="RO")
+            if check["checked"] != len(eligible):
                 raise RuntimeError("Incomplete RO URL batch")
+            skipped = len(batch) - len(eligible)
+            check["checked"] += skipped
+            check["reasons"]["skipped_unlocalized_copy"] = (
+                check["reasons"].get("skipped_unlocalized_copy", 0) + skipped)
             state["verified_urls"].update(urls)
             aggregate = state["url_check"]
             aggregate["checked"] += check["checked"]
@@ -77,7 +84,8 @@ def collect(journal, products, categories, store, token, deadline, should_stop):
                 samples = aggregate["sample_handles"].setdefault(reason, [])
                 samples.extend(handles[:max(0, 3 - len(samples))])
         elif stage == "collections":
-            missing = [p for p in candidates if p["id"] not in state["verified_urls"]]
+            missing = [p for p in candidates if p["id"] not in state["verified_urls"]
+                       and has_localized_copy(state["translated_map"], p["id"], "RO")]
             if index >= len(missing):
                 advance("variants")
                 continue
@@ -105,7 +113,8 @@ def collect(journal, products, categories, store, token, deadline, should_stop):
         state["next_index"] += len(batch)
         _save(path, state)
         print(f"[favi-ro-finalize] stage={stage} checked={state['next_index']}", flush=True)
-    missing = len(ids) - len(state["verified_urls"])
+    missing = sum(1 for p in candidates if p["id"] not in state["verified_urls"]
+                  and has_localized_copy(state["translated_map"], p["id"], "RO"))
     variant_ids = list(dict.fromkeys(
         v["id"] for p in candidates if p["id"] in
         (state["verified_urls"] | state["collection_urls"])
