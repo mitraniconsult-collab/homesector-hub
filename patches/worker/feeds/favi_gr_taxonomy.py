@@ -94,6 +94,10 @@ TAXONOMY_TO_FAVI_GR = {
         "Μαξιλάρια για έπιπλα", "https://favi.gr/proionta/kathgoria/maxilaria-epiplwn"),
     "gid://shopify/TaxonomyCategory/hg-3-4-2-3": (
         "Διακοσμητικοί πίνακες", "https://favi.gr/proionta/kathgoria/diakosmitikoi-pinakes"),
+    "gid://shopify/TaxonomyCategory/hg-3-17-4": (
+        "Ρολόγια", "https://favi.gr/proionta/kathgoria/rologia"),
+    "gid://shopify/TaxonomyCategory/fr-19-1-4": (
+        "Ραφιέρες", "https://favi.gr/proionta/kathgoria/rafieres"),
 }
 
 # Confirmed source category errors. Exclude only these product IDs from the
@@ -102,6 +106,7 @@ TAXONOMY_TO_FAVI_GR = {
 AUTO_CATEGORY_EXCLUSIONS = {
     "gid://shopify/Product/10980173709579": "gid://shopify/TaxonomyCategory/hg-11-4-6",  # Jarro jar tongs
     "gid://shopify/Product/8730408747275": "gid://shopify/TaxonomyCategory/hg-11-4-6",  # Klausberg coffee grinder
+    "gid://shopify/Product/10728260010251": "gid://shopify/TaxonomyCategory/fr-19-1-4",  # Mix & Modul woven storage box
 }
 
 
