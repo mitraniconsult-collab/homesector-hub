@@ -128,6 +128,21 @@ def run(mount, should_stop):
                     print('[favi-gr-scan] FAILED type=' + type(exc).__name__ +
                           (' reason=' + str(exc)[:100] if isinstance(exc, RuntimeError) else ''),
                           flush=True)
+            if os.getenv('FEED_FAVI_RO_SCAN') == 'yes' and not should_stop():
+                try:
+                    from .scheduled_favi_ro import tick as tick_ro
+                    bg_state = json.loads((Path(mount) / 'google-bg-schedule.json').read_text())
+                    now = time.time()
+                    due = [value for value in (bg_state.get('next_run_at'),
+                           bg_state.get('retry_at')) if isinstance(value, (int, float))
+                           and value > now]
+                    deadline = min(due) - 120 if due else now
+                    ro = tick_ro(mount, should_stop=should_stop, deadline=deadline)
+                    print('[favi-ro-scan] ' + json.dumps(ro, sort_keys=True), flush=True)
+                    if ro.get('status') == 'incomplete':
+                        continue
+                except Exception as exc:
+                    print('[favi-ro-scan] FAILED type=' + type(exc).__name__, flush=True)
         except Exception as exc:
             print('[feed-schedule] FAILED type=' + type(exc).__name__, flush=True)
         for _ in range(6):

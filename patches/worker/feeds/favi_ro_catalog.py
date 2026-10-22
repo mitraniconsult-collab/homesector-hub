@@ -6,6 +6,7 @@ public URL or alter the live Greek generation.
 import hashlib
 import json
 import os
+import time
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -15,6 +16,7 @@ from .durable_journal import DurableJournal
 from .favi_ro_preview import create_preview
 from .favi_ro_taxonomy import categories_for_products
 from .favi_gr_urls import verify_market_urls
+from .favi_ro_finalize import collect
 from .markets_catalog import catalog_query, read_remaining_variants
 from .shopify_auth import get_admin_token
 from .shopify_translations import fetch_translations, fetch_variant_translations
@@ -22,16 +24,17 @@ from .xml_audit import validate_xml
 
 
 def execute(batch_limit=10, root=None, store=None, token=None,
-            should_stop=lambda: False):
+            should_stop=lambda: False, source_folder=None, deadline=None):
     if not isinstance(batch_limit, int) or not 1 <= batch_limit <= 1000:
         raise ValueError("batch_limit must be 1..1000")
     root = root or os.getenv("FEED_DURABLE_PATH")
     if not root:
         raise ValueError("Durable mount path is not configured")
-    journal = DurableJournal(Path(root) / "favi-ro-source")
+    journal = DurableJournal(source_folder or Path(root) / "favi-ro-source")
     meta, _ = journal.load()
     if meta["finished"]:
-        return finalize(journal, store=store, token=token)
+        return finalize(journal, store=store, token=token, deadline=deadline,
+                        should_stop=should_stop)
     store = store or os.getenv("SHOPIFY_STORE", "")
     if not store.endswith(".myshopify.com") or "/" in store:
         raise ValueError("Invalid Shopify hostname")
@@ -40,7 +43,7 @@ def execute(batch_limit=10, root=None, store=None, token=None,
     cursor = meta["cursor"]
     seen = set()
     for _ in range(batch_limit):
-        if should_stop():
+        if should_stop() or deadline is not None and time.time() >= deadline:
             break
         if cursor is not None and cursor in seen:
             raise RuntimeError("Repeated Shopify pagination cursor")
@@ -63,12 +66,14 @@ def execute(batch_limit=10, root=None, store=None, token=None,
         cursor = end
         print(f"[favi-ro-scan] checkpoint products={meta['products']}", flush=True)
         if not more:
-            return finalize(journal, store=store, token=token)
+            return finalize(journal, store=store, token=token, deadline=deadline,
+                            should_stop=should_stop)
     return {"status": "incomplete", "source_products": meta["products"],
             "cursor_saved": True, "published": False}
 
 
-def finalize(journal, store=None, token=None):
+def finalize(journal, store=None, token=None, deadline=None,
+             should_stop=lambda: False):
     meta, products = journal.load()
     if not meta["finished"] or len(products) != meta["products"]:
         raise RuntimeError("Incomplete Romanian source catalog")
@@ -79,15 +84,31 @@ def finalize(journal, store=None, token=None):
     if not store.endswith(".myshopify.com") or "/" in store:
         raise ValueError("Invalid Shopify hostname")
     token = token or get_admin_token(store)
-    translated = fetch_translations(list(categories), store=store, token=token, market="RO")
-    verified, url_check = verify_market_urls(
-        romanian, categories, translated_map=translated, market="RO")
+    if deadline is not None:
+        collected = collect(journal, romanian, categories, store, token,
+                            deadline, should_stop)
+        if collected["status"] == "yielded":
+            return {"status": "yielded", "stage": collected["stage"],
+                    "source_products": meta["products"], "published": False}
+        translated = collected["translated_map"]
+        verified = collected["verified_urls"] | collected["collection_urls"]
+        url_check = collected["url_check"]
+        collection_check = collected["collection_check"]
+        variants = collected["variant_map"]
+    else:
+        translated = fetch_translations(list(categories), store=store, token=token, market="RO")
+        verified, url_check = verify_market_urls(
+            romanian, categories, translated_map=translated, market="RO")
+        variant_ids = [v["id"] for p in romanian if p["id"] in verified
+                       for v in p["variants"]["nodes"] if v.get("selectedOptions")]
+        variants = fetch_variant_translations(variant_ids, "RO", store=store, token=token)
+        collection_check = {"checked": 0, "verified": 0, "without_collection": 0}
     for product in romanian:
         if product["id"] in verified:
             product["verified_market_url_RO"] = verified[product["id"]]
-    variant_ids = [v["id"] for p in romanian if p["id"] in verified
-                   for v in p["variants"]["nodes"] if v.get("selectedOptions")]
-    variants = fetch_variant_translations(variant_ids, "RO", store=store, token=token)
+    if should_stop() or deadline is not None and time.time() >= deadline:
+        return {"status": "yielded", "stage": "serialize",
+                "source_products": meta["products"], "published": False}
     xml, report = create_preview(romanian, categories, set(verified), translated,
                                  variants)
     report.update({
@@ -100,6 +121,7 @@ def finalize(journal, store=None, token=None):
         "mapped_category_products": len(categories),
         "verified_market_url_products": len(verified),
         "verified_url_check": url_check,
+        "verified_collection_url_check": collection_check,
         "localized_copy_products_in_mapped_categories": sum(
             {"title", "body_html"}.issubset({
                 entry.get("key") for entry in translated.get(pid, {}).get("RO", [])

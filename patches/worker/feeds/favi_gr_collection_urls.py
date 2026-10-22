@@ -51,29 +51,33 @@ def _candidates(products, missing_ids, store, token):
     return result
 
 
-def _check(product, collections):
+def _check(product, collections, domain="homesector.gr"):
     handle = str(product.get("handle") or "")
     if not handle or "/" in handle or "?" in handle or "#" in handle:
         return None
     for collection in collections:
         path = "/collections/" + quote(collection, safe="-") + "/products/" + quote(handle, safe="-")
         try:
-            response = storefront_limiter.get("https://homesector.gr" + path, timeout=5,
+            response = storefront_limiter.get("https://" + domain + path, timeout=5,
                                     allow_redirects=True,
                                     headers={"User-Agent": "HomesectorFeedVerifier/1.0"})
             final = urlparse(response.url)
             if (response.status_code == 200 and final.scheme == "https"
-                    and final.hostname == "homesector.gr"
+                    and final.hostname == domain
                     and unquote(final.path).rstrip("/") == unquote(path)
                     and "text/html" in response.headers.get("Content-Type", "").lower()
                     and handle in response.text):
-                return "https://homesector.gr" + path
+                return "https://" + domain + path
         except requests.RequestException:
             continue
     return None
 
 
-def verify_collection_urls(products, already_verified, store, token, workers=16):
+def verify_collection_urls(products, already_verified, store, token, workers=16,
+                           market="GR"):
+    if market not in ("GR", "RO"):
+        raise ValueError("Unsupported FAVI collection market")
+    domain = "homesector." + ("gr" if market == "GR" else "ro")
     if not 1 <= workers <= 16:
         raise ValueError("Invalid URL verification concurrency")
     missing = {p["id"]: p for p in products if p.get("id") not in already_verified}
@@ -82,7 +86,7 @@ def verify_collection_urls(products, already_verified, store, token, workers=16)
     candidates = _candidates(products, set(missing), store, token)
     verified = {}
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = {pool.submit(_check, missing[pid], handles): pid
+        futures = {pool.submit(_check, missing[pid], handles, domain): pid
                    for pid, handles in candidates.items() if handles}
         for future in as_completed(futures):
             path = future.result()
