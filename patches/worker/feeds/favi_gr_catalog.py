@@ -151,6 +151,9 @@ def finalize(journal, root, store=None, token=None, publish=None,
             entry.get("key") for entry in
             translated_map.get(pid, {}).get("GR", []) if entry.get("value")
         }) for pid in categories)
+    from .favi_localization_gap import gaps_by_taxonomy
+    report["localized_copy_gap"] = gaps_by_taxonomy(
+        greek_products, categories, translated_map, "GR")
     report["top_source_product_types"] = Counter(
         str(p.get("productType") or "").strip() for p in greek_products
     ).most_common(50)

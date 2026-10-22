@@ -17,6 +17,7 @@ from .favi_ro_preview import create_preview
 from .favi_ro_taxonomy import categories_for_products
 from .favi_gr_urls import verify_market_urls
 from .favi_ro_finalize import collect
+from .favi_localization_gap import gaps_by_taxonomy
 from .markets_catalog import catalog_query, read_remaining_variants
 from .shopify_auth import get_admin_token
 from .shopify_translations import fetch_translations, fetch_variant_translations
@@ -127,6 +128,7 @@ def finalize(journal, store=None, token=None, deadline=None,
             {"title", "body_html"}.issubset({
                 entry.get("key") for entry in translated.get(pid, {}).get("RO", [])
                 if entry.get("value")}) for pid in categories),
+        "localized_copy_gap": gaps_by_taxonomy(romanian, categories, translated, "RO"),
         "top_shopify_taxonomy": Counter(
             ((p.get("category") or {}).get("id"),
              (p.get("category") or {}).get("fullName"))
