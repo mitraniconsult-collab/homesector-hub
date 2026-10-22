@@ -5,7 +5,8 @@ import time
 import uuid
 from pathlib import Path
 
-from .scheduled_favi_gr import MAX_SCAN_AGE_SECONDS, save, source_is_fresh
+from .scheduled_favi_gr import (MAX_SCAN_AGE_SECONDS, completed_source_expired,
+                                save, source_is_fresh)
 
 
 def tick(mount, should_stop=lambda: False, deadline=None):
@@ -30,6 +31,12 @@ def tick(mount, should_stop=lambda: False, deadline=None):
     if should_stop() or time.time() >= deadline:
         return {"status": "yielded", "generation": generation}
     folder = root / "favi-ro-runs" / generation / "favi-ro-source"
+    if completed_source_expired(folder, time.time()):
+        state.update(generation=None, rejected_generation=generation,
+                     last_error="StaleSource", next_run_at=time.time() + 300)
+        save(path, state)
+        return {"status": "stale_source_restarting", "generation": generation,
+                "next_run_at": state["next_run_at"]}
     try:
         from .favi_ro_catalog import execute
         report = execute(batch_limit=int(os.getenv("FEED_RO_PAGE_LIMIT", "100")),

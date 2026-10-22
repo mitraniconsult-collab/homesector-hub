@@ -159,6 +159,24 @@ class ScheduledGreekFeedTests(unittest.TestCase):
                 1000 + 11 * 3600, timezone.utc).isoformat()},
             1000 + 12 * 3600 + 1))
 
+    def test_expired_source_restarts_before_more_url_checks(self):
+        generation = "a" * 32
+        folder = self.root / "favi-gr-runs" / generation / "favi-gr-source"
+        folder.mkdir(parents=True)
+        manifest = folder / "manifest.json"
+        manifest.write_text(json.dumps({"finished": True}))
+        os.utime(manifest, (1000, 1000))
+        (self.root / "favi-gr-schedule.json").write_text(json.dumps({
+            "generation": generation, "started_at": 1000}))
+        with self._modules(lambda **kw: self.fail("expired source scanned"),
+                           lambda *a, **kw: self.fail("stale feed published")):
+            result = scheduled_favi_gr.tick(
+                self.root, now=1000 + scheduled_favi_gr.MAX_SCAN_AGE_SECONDS + 1)
+        self.assertEqual(result["status"], "stale_source_restarting")
+        self.assertTrue(manifest.exists())
+        state = json.loads((self.root / "favi-gr-schedule.json").read_text())
+        self.assertIsNone(state["generation"])
+
     def test_deadline_yield_preserves_generation_without_publication(self):
         calls, publications = [], []
 

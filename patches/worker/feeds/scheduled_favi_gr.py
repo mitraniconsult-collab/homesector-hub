@@ -36,6 +36,16 @@ def source_is_fresh(started_at, report, now):
     return started_at <= source_time <= now and now - source_time <= MAX_SCAN_AGE_SECONDS
 
 
+def completed_source_expired(folder, now):
+    """Avoid spending URL requests on a snapshot that cannot pass the gate."""
+    manifest = folder / "manifest.json"
+    if not manifest.exists():
+        return False
+    metadata = json.loads(manifest.read_text(encoding="utf-8"))
+    return bool(metadata.get("finished") and
+                now - manifest.stat().st_mtime > MAX_SCAN_AGE_SECONDS)
+
+
 def _refresh_digest():
     """A changed operator token requests one extra generation on this disk."""
     token = os.getenv("FEED_FAVI_GR_REFRESH_TOKEN", "")
@@ -116,6 +126,12 @@ def tick(mount, should_stop=lambda: False, now=None, deadline=None):
         return {"status": "yielded", "stage": "bg_deadline",
                 "generation": generation}
     folder = root / "favi-gr-runs" / generation / "favi-gr-source"
+    if completed_source_expired(folder, current()):
+        state.update(generation=None, rejected_generation=generation,
+                     last_error="StaleSource", next_run_at=clock + 300)
+        save(state_path, state)
+        return {"status": "stale_source_restarting", "generation": generation,
+                "next_run_at": state["next_run_at"]}
     try:
         report_path = folder / "favi-gr-report.json"
         xml_path = folder / "favi-gr-private.xml"
