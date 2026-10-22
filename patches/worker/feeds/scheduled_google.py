@@ -99,6 +99,16 @@ def tick(mount, should_stop=lambda: False, now=None):
         raise
 
 
+def _market_deadline(mount, now, sharing):
+    bg_state = json.loads((Path(mount) / 'google-bg-schedule.json').read_text())
+    due = [value for value in (bg_state.get('next_run_at'), bg_state.get('retry_at'))
+           if isinstance(value, (int, float)) and value > now]
+    # Keep two minutes for the next BG cycle. With two market scans enabled,
+    # each gets a bounded slice so one storefront cannot starve the other.
+    deadline = min(due) - 120 if due else now
+    return min(deadline, now + 240) if sharing else deadline
+
+
 def run(mount, should_stop):
     while not should_stop():
         try:
@@ -111,19 +121,11 @@ def run(mount, should_stop):
             if os.getenv('FEED_FAVI_GR_SCAN') == 'yes' and not should_stop():
                 try:
                     from .scheduled_favi_gr import tick as tick_gr
-                    bg_state = json.loads(
-                        (Path(mount) / 'google-bg-schedule.json').read_text())
                     now = time.time()
-                    due = [value for value in (
-                        bg_state.get('next_run_at'), bg_state.get('retry_at'))
-                        if isinstance(value, (int, float)) and value > now]
-                    # Reserve two minutes to return to the BG schedule. A GR
-                    # stage yields and persists its completed batches by then.
-                    deadline = min(due) - 120 if due else now
+                    deadline = _market_deadline(
+                        mount, now, os.getenv('FEED_FAVI_RO_SCAN') == 'yes')
                     gr = tick_gr(mount, should_stop=should_stop, deadline=deadline)
                     print('[favi-gr-scan] ' + json.dumps(gr, sort_keys=True), flush=True)
-                    if gr.get('status') == 'incomplete':
-                        continue
                 except Exception as exc:
                     print('[favi-gr-scan] FAILED type=' + type(exc).__name__ +
                           (' reason=' + str(exc)[:100] if isinstance(exc, RuntimeError) else ''),
@@ -131,12 +133,9 @@ def run(mount, should_stop):
             if os.getenv('FEED_FAVI_RO_SCAN') == 'yes' and not should_stop():
                 try:
                     from .scheduled_favi_ro import tick as tick_ro
-                    bg_state = json.loads((Path(mount) / 'google-bg-schedule.json').read_text())
                     now = time.time()
-                    due = [value for value in (bg_state.get('next_run_at'),
-                           bg_state.get('retry_at')) if isinstance(value, (int, float))
-                           and value > now]
-                    deadline = min(due) - 120 if due else now
+                    deadline = _market_deadline(
+                        mount, now, os.getenv('FEED_FAVI_GR_SCAN') == 'yes')
                     ro = tick_ro(mount, should_stop=should_stop, deadline=deadline)
                     print('[favi-ro-scan] ' + json.dumps(ro, sort_keys=True), flush=True)
                     if ro.get('status') == 'incomplete':

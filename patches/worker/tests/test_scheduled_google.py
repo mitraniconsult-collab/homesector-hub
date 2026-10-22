@@ -86,3 +86,13 @@ def test_invalid_interval_does_not_start_catalog(runtime, monkeypatch):
     monkeypatch.setenv('FEED_GOOGLE_REGENERATE_SECONDS', '1')
     with pytest.raises(ValueError): job.tick(root)
     assert not calls
+
+
+def test_two_market_scans_share_idle_window_without_delaying_bg(tmp_path):
+    state = {"next_run_at": 4600, "retry_at": 0}
+    (tmp_path / "google-bg-schedule.json").write_text(json.dumps(state))
+    assert job._market_deadline(tmp_path, 1000, sharing=True) == 1240
+    assert job._market_deadline(tmp_path, 1000, sharing=False) == 4480
+    state["next_run_at"] = 1250
+    (tmp_path / "google-bg-schedule.json").write_text(json.dumps(state))
+    assert job._market_deadline(tmp_path, 1000, sharing=True) == 1130
