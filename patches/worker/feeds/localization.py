@@ -36,6 +36,14 @@ _GR_BASIC_COLORS = {
     "кафяв": "καφέ", "бежов": "μπεζ", "бял": "λευκό",
     "черен": "μαύρο", "син": "μπλε", "зелен": "πράσινο",
 }
+_RO_BASIC_COLORS = {
+    "кафяв": "maro", "бежов": "bej", "бял": "alb",
+    "черен": "negru", "син": "albastru", "зелен": "verde",
+}
+
+
+def _has_cyrillic(value):
+    return any("\u0400" <= character <= "\u04ff" for character in value)
 
 def localize_variant_color(row, variant_translations, market):
     output = dict(row)
@@ -52,9 +60,15 @@ def localize_variant_color(row, variant_translations, market):
     value = values.get("option" + str(option_index), "")
     # Never send the Bulgarian source label to an international FAVI catalog.
     output["color"] = None
-    expected = _GR_BASIC_COLORS.get(str(row.get("color") or "").casefold().strip()) if market == "GR" else None
+    source = str(row.get("color") or "").casefold().strip()
+    expected = _GR_BASIC_COLORS.get(source) if market == "GR" else _RO_BASIC_COLORS.get(source)
     if market == "GR" and value and any("\u0370" <= c <= "\u03ff" for c in value) \
             and (not expected or value.casefold() == expected):
+        output["color"] = value
+        output["verified_variant_color"] = True
+    elif market == "RO" and value and not _has_cyrillic(value) \
+            and (not expected or value.casefold() == expected) \
+            and (value.casefold() != source or not _has_cyrillic(source)):
         output["color"] = value
         output["verified_variant_color"] = True
     else:
@@ -75,12 +89,21 @@ _GR_VARIANT_OPTION_LABELS = {
     "капацитет": "Χωρητικότητα", "capacity": "Χωρητικότητα",
 }
 _GR_COLOR_OPTIONS = {"color", "colour", "цвят", "цвет"}
+_RO_VARIANT_OPTION_LABELS = {
+    "аромат": "Aromă", "fragrance": "Aromă", "scent": "Aromă",
+    "размер": "Mărime", "size": "Mărime",
+    "материал": "Material", "material": "Material",
+    "дизайн": "Design", "design": "Design",
+    "финиш": "Finisaj", "finish": "Finisaj",
+    "стъкло": "Sticlă", "glass": "Sticlă",
+    "капацитет": "Capacitate", "capacity": "Capacitate",
+}
 
 
 def localize_variant_details(row, variant_translations, market):
     """Describe a variant using only its current Greek Shopify option values."""
     output = dict(row)
-    if market != "GR" or output.get("verified_locale") != "el":
+    if market not in ("GR", "RO") or output.get("verified_locale") != ("el" if market == "GR" else "ro"):
         return output
     values = {entry.get("key"): str(entry.get("value") or "").strip()
               for entry in (variant_translations or [])
@@ -90,16 +113,20 @@ def localize_variant_details(row, variant_translations, market):
         source_name = str(option.get("name") or "").strip().casefold()
         if source_name in _GR_COLOR_OPTIONS:
             continue
-        label = _GR_VARIANT_OPTION_LABELS.get(source_name)
+        label = (_GR_VARIANT_OPTION_LABELS if market == "GR" else _RO_VARIANT_OPTION_LABELS).get(source_name)
         source_value = str(option.get("value") or "").strip()
         value = values.get("option" + str(index), "")
         if not label or not source_value or not value:
             continue
         # Greek text is required for descriptive choices. Numeric dimensions
         # are language neutral, but still require an explicit Greek translation.
-        greek = any("\u0370" <= character <= "\u03ff" for character in value)
-        if not greek and not (label == "Μέγεθος" and
-                              all(c.isdigit() or c in ".,xX× /-cmCM" for c in value)):
+        if market == "GR":
+            greek = any("\u0370" <= character <= "\u03ff" for character in value)
+            if not greek and not (label == "Μέγεθος" and
+                                  all(c.isdigit() or c in ".,xX× /-cmCM" for c in value)):
+                continue
+        elif _has_cyrillic(value) or (value.casefold() == source_value.casefold()
+                                     and _has_cyrillic(source_value)):
             continue
         details.append(f"{label}: {value}")
     if details:
