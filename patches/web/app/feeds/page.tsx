@@ -19,11 +19,17 @@ type FaviReport = {
 };
 type GoogleReport = {
   status?: string;
+  checked_at?: string;
   homesector_items?: number;
   feedhub_items?: number;
   matched_variants?: number;
   only_feedhub?: number;
   only_homesector?: number;
+  xml_preflight?: {
+    passed?: boolean;
+    submitted?: boolean;
+    issues?: { missing_description?: number };
+  };
 };
 type RomanianReport = {
   xml_items?: number;
@@ -91,13 +97,15 @@ export default function FeedsPage() {
       <section className="card" aria-labelledby="google-bg-title">
         <div className="sectionTitle" style={{ margin: "0 0 12px" }}>
           <h2 id="google-bg-title">Google Shopping · България</h2>
-          <span className="badge">Публикуван XML</span>
+          <span className="badge warn">Публичен XML за сравнение</span>
         </div>
-        <p className="muted">Собственият фийд и сравнението му с Feedhub.</p>
+        <p className="muted">Собственият XML и сравнението му с Feedhub. Статусът на проверката и подаването е показан по-долу.</p>
         {google && <p>Наши варианти: <strong>{google.homesector_items?.toLocaleString("bg-BG") ?? "—"}</strong> · Feedhub: <strong>{google.feedhub_items?.toLocaleString("bg-BG") ?? "—"}</strong> · Съвпадащи: <strong>{google.matched_variants?.toLocaleString("bg-BG") ?? "—"}</strong></p>}
+        {google && <p>Проверка на XML: <strong>{google.xml_preflight?.passed === true ? "Премината" : google.xml_preflight?.passed === false ? "Има проблеми" : "—"}</strong> · Подаден към Merchant Center: <strong>{google.xml_preflight?.submitted === true ? "Да" : google.xml_preflight?.submitted === false ? "Не" : "—"}</strong> · Липсващи описания: <strong>{google.xml_preflight?.issues?.missing_description?.toLocaleString("bg-BG") ?? "—"}</strong></p>}
+        {google?.checked_at && <p className="muted">Сравнението е проверено на {new Date(google.checked_at).toLocaleString("bg-BG")}.</p>}
         {errors.google && <p role="alert" className="notice">{errors.google}</p>}
         <div className="actions" style={{ marginTop: 16 }}>
-          <a className="btn primary" href={links.google.xml} target="_blank" rel="noopener noreferrer">Отвори XML</a>
+          <a className="btn primary" href={links.google.xml} target="_blank" rel="noopener noreferrer">Отвори XML за сравнение</a>
           <a className="btn secondary" href={links.google.report} target="_blank" rel="noopener noreferrer">Сравнение с Feedhub</a>
         </div>
       </section>
