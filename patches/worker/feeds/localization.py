@@ -1,4 +1,5 @@
 """Apply existing verified Shopify translations; never invent translated product content."""
+import re
 from .markets_normalize import plain_text
 from .config import MARKETS
 
@@ -85,8 +86,12 @@ def localize_variant_color(row, variant_translations, market):
 # may come from Shopify's actual Greek variant translations. Unknown options
 # remain untouched instead of creating an unverified Greek label.
 _GR_VARIANT_OPTION_LABELS = {
-    "аромат": "Άρωμα", "fragrance": "Άρωμα", "scent": "Άρωμα",
-    "размер": "Μέγεθος", "size": "Μέγεθος",
+    "аромат": "Άρωμα", "aroma": "Άρωμα", "fragrance": "Άρωμα", "scent": "Άρωμα",
+    "размер": "Μέγεθος", "размери": "Μέγεθος", "size": "Μέγεθος",
+    "диаметър": "Διάμετρος", "обем": "Χωρητικότητα", "вместимост": "Χωρητικότητα",
+    "title": "Επιλογή", "тип": "Τύπος", "модел": "Μοντέλο",
+    "ефект": "Εφέ", "стил": "Στυλ", "цвят на абажура": "Χρώμα αμπαζούρ",
+    "брой": "Ποσότητα", "предназначение": "Χρήση", "финишировка": "Φινίρισμα",
     "материал": "Υλικό", "material": "Υλικό",
     "дизайн": "Σχέδιο", "design": "Σχέδιο",
     "финиш": "Φινίρισμα", "finish": "Φινίρισμα",
@@ -94,6 +99,9 @@ _GR_VARIANT_OPTION_LABELS = {
     "капацитет": "Χωρητικότητα", "capacity": "Χωρητικότητα",
 }
 _GR_COLOR_OPTIONS = {"color", "colour", "цвят", "цвет"}
+_GR_NUMERIC_OPTION_NAMES = {"размер", "размери", "size", "диаметър", "обем",
+                            "вместимост", "капацитет", "capacity"}
+_GR_NUMERIC_VALUE = re.compile(r"\d+(?:[.,]\d+)?(?:\s*[xX×]\s*\d+(?:[.,]\d+)?)*\s*(?:cm|mm|m|L|l)?", re.ASCII)
 _RO_VARIANT_OPTION_LABELS = {
     "аромат": "Aromă", "fragrance": "Aromă", "scent": "Aromă",
     "размер": "Mărime", "size": "Mărime",
@@ -132,14 +140,17 @@ def localize_variant_details(row, variant_translations, market):
                  "HU": _HU_VARIANT_OPTION_LABELS}[market].get(source_name)
         source_value = str(option.get("value") or "").strip()
         value = values.get("option" + str(index), "")
+        if market == "GR" and not value and source_name in _GR_NUMERIC_OPTION_NAMES \
+                and _GR_NUMERIC_VALUE.fullmatch(source_value):
+            value = source_value
         if not label or not source_value or not value:
             continue
-        # Greek text is required for descriptive choices. Numeric dimensions
-        # are language neutral, but still require an explicit Greek translation.
+        # Greek text is required for descriptive choices; numeric measurements
+        # are language neutral and can retain their original units.
         if market == "GR":
             greek = any("\u0370" <= character <= "\u03ff" for character in value)
-            if not greek and not (label == "Μέγεθος" and
-                                  all(c.isdigit() or c in ".,xX× /-cmCM" for c in value)):
+            if not greek and not (source_name in _GR_NUMERIC_OPTION_NAMES and
+                                  _GR_NUMERIC_VALUE.fullmatch(value)):
                 continue
         elif _has_cyrillic(value) or (value.casefold() == source_value.casefold()
                                      and _has_cyrillic(source_value)):
