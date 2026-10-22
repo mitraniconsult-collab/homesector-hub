@@ -20,6 +20,23 @@ def tick(mount, should_stop=lambda: False, deadline=None):
     if now < state.get("retry_at", 0):
         return {"status": "retry_wait", "retry_at": state["retry_at"]}
     if not state.get("generation"):
+        # Publish the completed private run without repeating its Shopify scan.
+        receipt = state.get("receipt") or {}
+        if (os.getenv("FEED_FAVI_RO_PREVIEW_PUBLISH") == "yes"
+                and receipt.get("status") == "private_complete"
+                and state.get("last_generation")):
+            folder = root / "favi-ro-runs" / state["last_generation"] / "favi-ro-source"
+            report = json.loads((folder / "favi-ro-report.json").read_text(encoding="utf-8"))
+            if not report.get("private_audit_passed") or not source_is_fresh(
+                    state["started_at"], report, now):
+                return {"status": "private_preview_expired",
+                        "generation": state["last_generation"]}
+            from .favi_ro_delivery import publish_preview
+            published = publish_preview(root, folder)
+            state.update(receipt=published, last_success_at=time.time(),
+                         last_items=published["items"])
+            save(path, state)
+            return {**published, "generation": state["last_generation"]}
         if now < state.get("next_run_at", 0):
             return {"status": "waiting", "next_run_at": state["next_run_at"]}
         state.update(generation=uuid.uuid4().hex, started_at=now)
