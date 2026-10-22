@@ -25,10 +25,20 @@ type GoogleReport = {
   only_feedhub?: number;
   only_homesector?: number;
 };
+type RomanianReport = {
+  xml_items?: number;
+  romanian_published_products?: number;
+  romanian_published_variants?: number;
+  mapped_category_products?: number;
+  verified_market_url_products?: number;
+  generated_at?: string;
+  source_complete?: boolean;
+};
 
 const links = {
   google: { xml: "/feeds/google/BG.xml", report: "/feeds/google/BG-comparison.json" },
   favi: { xml: "/feeds/favi/GR-preview.xml", report: "/feeds/favi/GR-preview-report.json" },
+  faviRo: { xml: "/feeds/favi/RO-preview.xml", report: "/feeds/favi/RO-preview-report.json" },
 };
 
 function share(part?: number, total?: number) {
@@ -39,6 +49,7 @@ function share(part?: number, total?: number) {
 export default function FeedsPage() {
   const [google, setGoogle] = useState<GoogleReport | null>(null);
   const [favi, setFavi] = useState<FaviReport | null>(null);
+  const [faviRo, setFaviRo] = useState<RomanianReport | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
@@ -53,12 +64,18 @@ export default function FeedsPage() {
         if (!response.ok) throw new Error("HTTP " + response.status);
         return response.json() as Promise<FaviReport>;
       }),
+      fetch(links.faviRo.report, { cache: "no-store" }).then(async response => {
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        return response.json() as Promise<RomanianReport>;
+      }),
     ]);
     const failures: Record<string, string> = {};
     if (results[0].status === "fulfilled") setGoogle(results[0].value);
     else { setGoogle(null); failures.google = "Отчетът временно не е достъпен."; }
     if (results[1].status === "fulfilled") setFavi(results[1].value);
     else { setFavi(null); failures.favi = "Отчетът временно не е достъпен."; }
+    setFaviRo(results[2].status === "fulfilled" && results[2].value.source_complete
+      ? results[2].value : null);
     setErrors(failures);
     setLoading(false);
   }, []);
@@ -106,6 +123,28 @@ export default function FeedsPage() {
           <a className="btn primary" href={links.favi.xml} target="_blank" rel="noopener noreferrer">Отвори XML прегледа</a>
           <a className="btn secondary" href={links.favi.report} target="_blank" rel="noopener noreferrer">Отчет за проверка</a>
         </div>
+      </section>
+      <section className="card" aria-labelledby="favi-ro-title">
+        <div className="sectionTitle" style={{ margin: "0 0 12px" }}>
+          <h2 id="favi-ro-title">FAVI · Румъния</h2>
+          <span className="badge warn">{faviRo ? "XML преглед" : "Пълен обход"}</span>
+        </div>
+        {faviRo ? <>
+          <p>Варианти в XML: <strong>{faviRo.xml_items?.toLocaleString("bg-BG") ?? "—"}</strong> от {faviRo.romanian_published_variants?.toLocaleString("bg-BG") ?? "—"} в Shopify за RO.</p>
+          <p>Продукти за RO: {faviRo.romanian_published_products?.toLocaleString("bg-BG") ?? "—"} · с категория: {faviRo.mapped_category_products?.toLocaleString("bg-BG") ?? "—"} · с проверен URL: {faviRo.verified_market_url_products?.toLocaleString("bg-BG") ?? "—"}.</p>
+          {faviRo.generated_at && <p className="muted">Отчет: {new Date(faviRo.generated_at).toLocaleString("bg-BG")}</p>}
+          <div className="actions" style={{ marginTop: 16 }}>
+            <a className="btn primary" href={links.faviRo.xml} target="_blank" rel="noopener noreferrer">Отвори XML прегледа</a>
+            <a className="btn secondary" href={links.faviRo.report} target="_blank" rel="noopener noreferrer">Отчет за проверка</a>
+          </div>
+        </> : <p className="muted">Обходът е в ход. XML и отчет ще се появят след пълна проверка.</p>}
+      </section>
+      <section className="card" aria-labelledby="favi-hu-title">
+        <div className="sectionTitle" style={{ margin: "0 0 12px" }}>
+          <h2 id="favi-hu-title">FAVI · Унгария</h2>
+          <span className="badge warn">Предстои</span>
+        </div>
+        <p className="muted">Унгарският фийд следва след пълния RO обход и проверка на HUF, преводи, категории и URL-и.</p>
       </section>
     </div>
     <p className="muted" style={{ marginTop: 18 }}>Тук се виждат наличните фийдове и отчетите им. Стартиране на генерация, промяна на правила и подаване към каналите ще се добавят след свързване с управлението на задачите.</p>
