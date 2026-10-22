@@ -10,6 +10,8 @@ export async function proxy(request: NextRequest) {
     "/feeds/google/BG-comparison.json",
     "/feeds/favi/GR-preview.xml",
     "/feeds/favi/GR-preview-report.json",
+    "/feeds/favi/RO-preview.xml",
+    "/feeds/favi/RO-preview-report.json",
   ];
   const feed = publicFeedPaths.includes(path) && ["GET", "HEAD"].includes(request.method);
   if (feed || workerRequest(request)) return NextResponse.next();
