@@ -88,6 +88,17 @@ def test_invalid_interval_does_not_start_catalog(runtime, monkeypatch):
     assert not calls
 
 
+def test_longer_diagnostic_interval_reschedules_idle_bg_without_losing_market_window(runtime, monkeypatch):
+    root, calls = runtime
+    job.tick(root, now=100)
+    monkeypatch.setenv('FEED_GOOGLE_REGENERATE_SECONDS', '21600')
+    result = job.tick(root, now=3700)
+    assert result == {'status': 'waiting', 'next_run_at': 21700}
+    assert len(calls) == 3
+    state = json.loads((root / 'google-bg-schedule.json').read_text())
+    assert state['scheduled_interval_seconds'] == 21600
+
+
 def test_two_market_scans_share_idle_window_without_delaying_bg(tmp_path):
     state = {"next_run_at": 4600, "retry_at": 0}
     (tmp_path / "google-bg-schedule.json").write_text(json.dumps(state))

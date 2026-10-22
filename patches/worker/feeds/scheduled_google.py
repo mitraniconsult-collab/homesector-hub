@@ -69,6 +69,14 @@ def tick(mount, should_stop=lambda: False, now=None):
     state = json.loads(path.read_text()) if path.exists() else {}
     if now < state.get('retry_at', 0):
         return {'status': 'retry_wait', 'retry_at': state['retry_at']}
+    # Respect a deliberate interval change immediately. The existing due time
+    # was calculated under the old interval and must not start an unnecessary
+    # hourly catalog while market URL scans need the shared worker.
+    if (not state.get('generation') and state.get('last_success_at') is not None
+            and state.get('scheduled_interval_seconds') != interval):
+        state['next_run_at'] = state['last_success_at'] + interval
+        state['scheduled_interval_seconds'] = interval
+        save(path, state)
     if not state.get('generation'):
         if now < state.get('next_run_at', 0):
             return {'status': 'waiting', 'next_run_at': state['next_run_at']}
@@ -118,7 +126,8 @@ def tick(mount, should_stop=lambda: False, now=None):
         completed = time.time() if real_clock else now
         state.update(generation=None, last_generation=generation, last_success_at=completed,
                      next_run_at=completed + interval, last_items=receipt['items'],
-                     sha256=receipt['sha256'], receipt=receipt, last_error=None, retry_at=0)
+                     sha256=receipt['sha256'], receipt=receipt, last_error=None, retry_at=0,
+                     scheduled_interval_seconds=interval)
         save(path, state)
         # The new run is now the public baseline; the previous published run
         # may be removed on the next tick, when this run is protected.
