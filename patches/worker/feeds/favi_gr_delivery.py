@@ -35,6 +35,8 @@ def publish_preview(mount, source_folder=None):
         raise RuntimeError("Incomplete or invalid FAVI GR preview: "
                            + json.dumps(favi_audit["issues"], sort_keys=True))
     report["favi_gr_preflight_audit"] = favi_audit
+    report["published"] = True
+    report["status"] = "partial_preview_published"
     store = BlobStore(os.getenv("FEED_BLOB_READ_WRITE_TOKEN", ""), prefix=PREFIX)
     old, etag = store.read(MANIFEST)
     if old is not None:
