@@ -122,6 +122,8 @@ def tick(mount, should_stop=lambda: False, now=None):
                     'blocked_missing_parent_group': favi['blocked_missing_parent_group'],
                     'skipped_no_checked_mapping': favi['skipped_no_checked_mapping'],
                     'blocked_legacy_id_migration': favi['blocked_legacy_id_migration'],
+                    'id_migration_candidate_items': favi['id_migration_candidate_items'],
+                    'id_migration_candidate_rejections': favi['id_migration_candidate_rejections'],
                     'serializer_rejections': favi['serializer_rejections'],
                     'categories_mapped': favi['categories_mapped'],
                     'top_unmapped_shopify_taxonomy': favi['top_unmapped_shopify_taxonomy'],

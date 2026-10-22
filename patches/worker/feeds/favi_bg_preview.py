@@ -68,7 +68,7 @@ def create_preview(mount, source_folder=None):
             known_legacy.add(gid)
             if is_safe_favi_id(oldid):
                 historic[gid] = oldid
-    prepared, causes, per_path = [], Counter(), Counter()
+    prepared, migration_rows, causes, per_path = [], [], Counter(), Counter()
     unmapped_taxonomy = Counter()
     legacy_id_patterns = Counter()
     new_ids, old_ids = 0, 0
@@ -97,6 +97,11 @@ def create_preview(mount, source_folder=None):
                 # XML. These require explicit FAVI migration approval.
                 causes["legacy_id_requires_migration_review"] += 1
                 legacy_id_patterns["punctuated"] += 1
+                migration_row = dict(row)
+                migration_row["id"] = variant_feed_id(row["id"])
+                migration_row["product_type"] = favi_category
+                migration_row["category_verified_for_market"] = True
+                migration_rows.append(migration_row)
                 continue
             else:
                 row["id"] = variant_feed_id(row["id"])
@@ -116,6 +121,16 @@ def create_preview(mount, source_folder=None):
         file.flush()
         os.fsync(file.fileno())
     os.replace(temp, destination)
+    # A separate private candidate quantifies the proposed ID migration. It
+    # cannot replace the legacy feed without an explicit destination decision.
+    migration_xml, migration_report = generate_favi(prepared + migration_rows, "BG")
+    migration_path = root / "favi-bg-id-migration-candidate.xml"
+    migration_temp = root / "favi-bg-id-migration-candidate.xml.tmp"
+    with migration_temp.open("wb") as file:
+        file.write(migration_xml)
+        file.flush()
+        os.fsync(file.fileno())
+    os.replace(migration_temp, migration_path)
     report = {
         "status": "unpublished_preview", "original_catalog_items": m["items"],
         "xml_items": count, "candidate_category_rows": len(prepared),
@@ -131,6 +146,9 @@ def create_preview(mount, source_folder=None):
         "top_mapped_paths": per_path.most_common(15),
         "top_unmapped_shopify_taxonomy": unmapped_taxonomy.most_common(30),
         "legacy_id_patterns_held": dict(legacy_id_patterns),
+        "id_migration_candidate_items": migration_report["items_exported"],
+        "id_migration_candidate_rejections": migration_report["excluded_reasons"],
+        "id_migration_candidate_sha256": hashlib.sha256(migration_xml).hexdigest(),
         "sha256": hashlib.sha256(xml).hexdigest(),
         "approved_by_favi": False, "published": False,
     }
