@@ -56,15 +56,14 @@ def test_translated_handle_is_verified_and_used_for_link():
 
 
 
-def test_http_failure_report_preserves_status_code():
-    class Response:
-        status_code = 429
-        url = "https://homesector.gr/products/hello-chair"
-        headers = {"Content-Type": "text/html"}
-        text = "Too many requests"
+def test_http_429_defers_batch_instead_of_marking_product_invalid():
+    from feeds.favi_gr_rate_limit import StorefrontRateLimited
     product = {"id": "p4", "handle": "hello-chair"}
-    with patch("feeds.favi_gr_urls.requests.get", return_value=Response()):
-        urls, report = verify_market_urls([product], {"p4": {"verified": True}}, workers=1)
-    assert urls == {}
-    assert report["reasons"] == {"http_429": 1}
-    assert report["sample_handles"]["http_429"] == ["hello-chair"]
+    with patch("feeds.favi_gr_urls.storefront_limiter.get",
+               side_effect=StorefrontRateLimited("cooldown")):
+        try:
+            verify_market_urls([product], {"p4": {"verified": True}}, workers=1)
+        except StorefrontRateLimited:
+            pass
+        else:
+            assert False, "A throttled URL batch must be resumed later"
