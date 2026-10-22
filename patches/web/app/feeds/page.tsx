@@ -31,6 +31,16 @@ type GoogleReport = {
     issues?: { missing_description?: number };
   };
 };
+type HungarianReport = {
+  xml_items?: number;
+  hungarian_published_products?: number;
+  hungarian_published_variants?: number;
+  mapped_category_products?: number;
+  verified_market_url_products?: number;
+  generated_at?: string;
+  source_complete?: boolean;
+};
+
 type RomanianReport = {
   xml_items?: number;
   romanian_published_products?: number;
@@ -45,6 +55,7 @@ const links = {
   google: { xml: "/feeds/google/BG.xml", report: "/feeds/google/BG-comparison.json" },
   favi: { xml: "/feeds/favi/GR-preview.xml", report: "/feeds/favi/GR-preview-report.json" },
   faviRo: { xml: "/feeds/favi/RO-preview.xml", report: "/feeds/favi/RO-preview-report.json" },
+  faviHu: { xml: "/feeds/favi/HU-preview.xml", report: "/feeds/favi/HU-preview-report.json" },
 };
 
 function share(part?: number, total?: number) {
@@ -56,6 +67,7 @@ export default function FeedsPage() {
   const [google, setGoogle] = useState<GoogleReport | null>(null);
   const [favi, setFavi] = useState<FaviReport | null>(null);
   const [faviRo, setFaviRo] = useState<RomanianReport | null>(null);
+  const [faviHu, setFaviHu] = useState<HungarianReport | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
@@ -74,6 +86,10 @@ export default function FeedsPage() {
         if (!response.ok) throw new Error("HTTP " + response.status);
         return response.json() as Promise<RomanianReport>;
       }),
+      fetch(links.faviHu.report, { cache: "no-store" }).then(async response => {
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        return response.json() as Promise<HungarianReport>;
+      }),
     ]);
     const failures: Record<string, string> = {};
     if (results[0].status === "fulfilled") setGoogle(results[0].value);
@@ -82,6 +98,8 @@ export default function FeedsPage() {
     else { setFavi(null); failures.favi = "Отчетът временно не е достъпен."; }
     setFaviRo(results[2].status === "fulfilled" && results[2].value.source_complete
       ? results[2].value : null);
+    setFaviHu(results[3].status === "fulfilled" && results[3].value.source_complete
+      ? results[3].value : null);
     setErrors(failures);
     setLoading(false);
   }, []);
@@ -118,7 +136,7 @@ export default function FeedsPage() {
           </ul>
           {(favi.generated_at || favi.source_snapshot_at) && <p className="muted">Отчет: {favi.generated_at ? new Date(favi.generated_at).toLocaleString("bg-BG") : "—"} · Shopify snapshot: {favi.source_snapshot_at ? new Date(favi.source_snapshot_at).toLocaleString("bg-BG") : "—"}</p>}
         </>}
-        <div className="notice" style={{ marginTop: 14 }}>Това е частичен преглед. Още не е одобрен от FAVI и не е подаден към тях. Не използвайте този URL като производствен фийд.</div>
+        <div className="notice" style={{ marginTop: 14 }}>Адресът е постоянен. Съдържанието е частично и се обновява след проверка; одобрението от FAVI се следи отделно.</div>
         {errors.favi && <p role="alert" className="notice">{errors.favi}</p>}
         <div className="actions" style={{ marginTop: 16 }}>
           <a className="btn primary" href={links.favi.xml} target="_blank" rel="noopener noreferrer">Отвори XML прегледа</a>
@@ -143,9 +161,17 @@ export default function FeedsPage() {
       <section className="card" aria-labelledby="favi-hu-title">
         <div className="sectionTitle" style={{ margin: "0 0 12px" }}>
           <h2 id="favi-hu-title">FAVI · Унгария</h2>
-          <span className="badge warn">Предстои</span>
+          <span className="badge warn">{faviHu ? "XML преглед" : "Подготовка"}</span>
         </div>
-        <p className="muted">Унгарският фийд следва след пълния RO обход и проверка на HUF, преводи, категории и URL-и.</p>
+        {faviHu ? <>
+          <p>Варианти в XML: <strong>{faviHu.xml_items?.toLocaleString("bg-BG") ?? "—"}</strong> от {faviHu.hungarian_published_variants?.toLocaleString("bg-BG") ?? "—"} в Shopify за HU.</p>
+          <p>Продукти за HU: {faviHu.hungarian_published_products?.toLocaleString("bg-BG") ?? "—"} · с категория: {faviHu.mapped_category_products?.toLocaleString("bg-BG") ?? "—"} · с проверен URL: {faviHu.verified_market_url_products?.toLocaleString("bg-BG") ?? "—"}.</p>
+          {faviHu.generated_at && <p className="muted">Отчет: {new Date(faviHu.generated_at).toLocaleString("bg-BG")}</p>}
+          <div className="actions" style={{ marginTop: 16 }}>
+            <a className="btn primary" href={links.faviHu.xml} target="_blank" rel="noopener noreferrer">Отвори XML прегледа</a>
+            <a className="btn secondary" href={links.faviHu.report} target="_blank" rel="noopener noreferrer">Отчет за проверка</a>
+          </div>
+        </> : <p className="muted">Публичният XML ще се появи след пълен обход и одит.</p>}
       </section>
       <section className="card" aria-labelledby="catalog-bg-title">
         <div className="sectionTitle" style={{ margin: "0 0 12px" }}>
