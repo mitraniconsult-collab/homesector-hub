@@ -188,6 +188,20 @@ def run(mount, should_stop):
                 except Exception as exc:
                     print('[favi-ro-scan] FAILED type=' + type(exc).__name__ +
                           _error_detail(exc), flush=True)
+            if os.getenv('FEED_FAVI_HU_SCAN') == 'yes' and not should_stop():
+                try:
+                    from .scheduled_favi_hu import tick as tick_hu
+                    now = time.time()
+                    sharing = (os.getenv('FEED_FAVI_GR_SCAN') == 'yes'
+                               or os.getenv('FEED_FAVI_RO_SCAN') == 'yes')
+                    deadline = _market_deadline(mount, now, sharing)
+                    hu = tick_hu(mount, should_stop=should_stop, deadline=deadline)
+                    print('[favi-hu-scan] ' + json.dumps(hu, sort_keys=True), flush=True)
+                    if hu.get('status') == 'incomplete':
+                        continue
+                except Exception as exc:
+                    print('[favi-hu-scan] FAILED type=' + type(exc).__name__ +
+                          _error_detail(exc), flush=True)
         except Exception as exc:
             print('[feed-schedule] FAILED type=' + type(exc).__name__ +
                   _error_detail(exc), flush=True)
