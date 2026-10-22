@@ -71,6 +71,58 @@ class BusinessRules(unittest.TestCase):
                     with self.assertRaisesRegex(RuntimeError, 'реалната синхронизация е спряна'):
                         supplier.fetch_all_products()
 
+    def test_missing_skus_do_not_block_confirmed_variants_or_change_unknown_siblings(self):
+        vs = [variant(code, policy='DENY', arrival='2099-12-16')
+              for code in ('A', 'C', 'D', 'Z', 'B', 'E', 'F', 'G', 'H', 'I', '')]
+        for v in vs:
+            v['variant_count'] = len(vs)
+        catalog = {code: {'idTypeDispo': 1} for code in ('A', 'C', 'D')}
+        catalog['Z'] = {'idTypeDispo': 0}  # unknown must not become stopped
+        sh = FakeShopify(vs)
+        supplier = Mock()
+        supplier.fetch_all_products.return_value = catalog
+        with tempfile.TemporaryDirectory() as tmp, patch.object(sync, 'DRY_RUN', False), \
+             patch.object(sync, 'REPORT_FILE', str(Path(tmp) / 'report.csv')), \
+             patch.object(sync.runtime, 'require_env'), patch.object(sync.runtime, 'force', return_value=False), \
+             patch.object(sync, 'EasyRea', return_value=supplier), patch.object(sync, 'Shopify', return_value=sh):
+            sync.main()
+            with Path(sync.REPORT_FILE).open(encoding='utf-8-sig') as f:
+                rows = list(csv.DictReader(f))
+        self.assertEqual(len(rows), len(vs))
+        self.assertEqual(sum(r['applied'] == 'review' for r in rows), 8)
+        self.assertEqual({call[1] for call in sh.calls}, {'vA', 'vC', 'vD'})
+        for v in vs:
+            self.assertEqual(v['product_date'], '2099-12-16')
+            self.assertEqual(v['quantity'], 0)
+            if v['sku'] not in ('A', 'C', 'D'):
+                self.assertEqual(v['inventory_policy'], 'DENY')
+                self.assertEqual(v['variant_date'], '2099-12-16')
+
+    def test_unknown_supplier_status_spike_still_blocks_real_run(self):
+        vs = [variant('A'), variant('B'), variant('C')]
+        catalog = {'A': {'idTypeDispo': 1}, 'B': {'idTypeDispo': 0}}
+        entries = [e for group in sync.build_plan(vs, catalog).values() for e in group]
+        with patch.object(sync.runtime, 'force', return_value=False):
+            with self.assertRaisesRegex(RuntimeError, 'Над 25% непознати статуси'):
+                sync.validate_plan(entries, dry_run=False)
+        counts = sync.validate_plan(entries, dry_run=True)
+        self.assertEqual(counts['missing_supplier'], 1)
+        self.assertEqual(counts['unknown_status'], 1)
+
+    def test_untracked_matched_variants_do_not_dilute_unknown_status_guard(self):
+        vs = [variant('A'), variant('B')] + [dict(variant(str(i)), tracked=False) for i in range(10)]
+        catalog = {v['sku']: {'idTypeDispo': 1} for v in vs}
+        catalog['B'] = {'idTypeDispo': 0}
+        entries = [e for group in sync.build_plan(vs, catalog).values() for e in group]
+        with patch.object(sync.runtime, 'force', return_value=False):
+            with self.assertRaisesRegex(RuntimeError, 'Над 25% непознати статуси'):
+                sync.validate_plan(entries, dry_run=False)
+
+    def test_no_confirmed_variant_blocks_real_run(self):
+        entries = [e for group in sync.build_plan([variant('A')], {}).values() for e in group]
+        with self.assertRaisesRegex(RuntimeError, 'Няма потвърдени варианти'):
+            sync.validate_plan(entries, dry_run=False)
+
     def test_supplier_stock_enables_oversell_and_clears_date_for_all_quantities(self):
         for qty in (-3, 0, 4):
             d = decide({'idTypeDispo': 1}, qty, today=TODAY)

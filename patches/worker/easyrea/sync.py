@@ -24,8 +24,9 @@ from stock_rules import decide, product_date
 #      По подразбиране ТЕСТ. Виж runtime.py. ----
 DRY_RUN = runtime.dry_run(default=True)
 
-# Stop real runs when an unusually large share of SKUs is missing/unknown.
-MAX_MISSING_PCT = 25.0
+# Stop real runs when matched, tracked supplier records use unexpected statuses.
+# Missing/blank SKUs are skipped individually and cannot change Shopify.
+MAX_UNKNOWN_STATUS_PCT = 25.0
 STOPPED_STATUS_IDS = {x.strip() for x in os.environ.get("EASYREA_STOPPED_STATUS_IDS", "").split(",") if x.strip()}
 
 # ---- EasyRea ----
@@ -361,6 +362,37 @@ def build_plan(variants, easyrea):
     return groups
 
 
+def validate_plan(entries, dry_run):
+    """Guard supplier status changes without treating skipped SKUs as mutations."""
+    from collections import Counter
+    counts = Counter()
+    for v, rec, d in entries:
+        if not v["sku"]:
+            counts["blank_sku"] += 1
+        elif rec is None:
+            counts["missing_supplier"] += 1
+        elif not v["tracked"] or not isinstance(v["quantity"], int) or isinstance(v["quantity"], bool):
+            counts["unknown_inventory"] += 1
+        elif d.policy is None:
+            counts["unknown_status"] += 1
+        else:
+            counts["confirmed"] += 1
+    matched = counts["confirmed"] + counts["unknown_status"]
+    unknown_pct = 100 * counts["unknown_status"] / max(matched, 1)
+    print(f"[план] {len(entries)} варианта | потвърдени: {counts['confirmed']} | "
+          f"без SKU: {counts['blank_sku']} | липсващи в Easyrea: {counts['missing_supplier']} | "
+          f"непрочетена/непроследявана наличност: {counts['unknown_inventory']} | "
+          f"непознат статус: {counts['unknown_status']} ({unknown_pct:.1f}% от съпоставените с прочетена наличност)", flush=True)
+    if sum(counts[k] for k in ("blank_sku", "missing_supplier", "unknown_inventory", "unknown_status")):
+        print("[WARNING] Пропуснатите варианти остават БЕЗ ПРОМЯНА; продуктовите дати при непълни групи също се запазват.", flush=True)
+    if not dry_run:
+        if not counts["confirmed"]:
+            raise RuntimeError("Няма потвърдени варианти за синхронизация — без промени")
+        if unknown_pct > MAX_UNKNOWN_STATUS_PCT and not runtime.force():
+            raise RuntimeError("Над 25% непознати статуси сред съпоставените Easyrea варианти — без промени; пуснете диагностичен тест")
+    return counts
+
+
 def apply_variant(sh, v, d):
     if d.policy is None:
         return "review"
@@ -389,12 +421,9 @@ def main():
     for v, rec, d in review_entries[:20]:
         labels = {k: rec.get(k) for k in ("availabilityLabel", "libelleTypeDispo", "labelTypeDispo", "typeDispo") if rec and rec.get(k) is not None}
         print(f"[за проверка] SKU {v['sku']}: {d.reason}; етикети={json.dumps(labels, ensure_ascii=False)}")
-    review_pct = 100 * sum(d.policy is None for _, _, d in all_entries) / max(len(all_entries), 1)
-    print(f"[план] {len(all_entries)} варианта | за проверка: {review_pct:.1f}%")
-    if not DRY_RUN and review_pct > MAX_MISSING_PCT and not runtime.force():
-        raise RuntimeError("Над 25% липсващи/непознати продукти — без промени; прегледай тестовия отчет")
     if not all_entries:
         raise RuntimeError("Не са намерени варианти от Easyrea брандовете")
+    validate_plan(all_entries, DRY_RUN)
     rows = []
     errors = 0
     progress = 0
