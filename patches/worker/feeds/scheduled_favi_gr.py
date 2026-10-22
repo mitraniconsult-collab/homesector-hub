@@ -9,9 +9,31 @@ import os
 import shutil
 import time
 import uuid
+from datetime import datetime
 from pathlib import Path
 
 MAX_SCAN_AGE_SECONDS = 6 * 3600
+MAX_GENERATION_AGE_SECONDS = 12 * 3600
+
+
+def source_is_fresh(started_at, report, now):
+    """A long scan may finish if the completed Shopify snapshot is recent."""
+    age = now - started_at
+    if age < 0 or age > MAX_GENERATION_AGE_SECONDS:
+        return False
+    if age <= MAX_SCAN_AGE_SECONDS:
+        return True
+    timestamp = report.get("source_snapshot_at")
+    if not isinstance(timestamp, str):
+        return False
+    try:
+        snapshot = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+        if snapshot.tzinfo is None:
+            return False
+        source_time = snapshot.timestamp()
+    except ValueError:
+        return False
+    return started_at <= source_time <= now and now - source_time <= MAX_SCAN_AGE_SECONDS
 
 
 def _refresh_digest():
@@ -120,7 +142,7 @@ def tick(mount, should_stop=lambda: False, now=None, deadline=None):
             raise RuntimeError("Incomplete GR catalog generation")
         # A resumed scan from days ago cannot look current just because its
         # URL checks and report were regenerated today.
-        if current() - state["started_at"] > MAX_SCAN_AGE_SECONDS:
+        if not source_is_fresh(state["started_at"], report, current()):
             state.update(generation=None, rejected_generation=generation,
                          last_error="StaleGeneration", next_run_at=clock + 300)
             save(state_path, state)

@@ -5,7 +5,7 @@ import time
 import uuid
 from pathlib import Path
 
-from .scheduled_favi_gr import MAX_SCAN_AGE_SECONDS, save
+from .scheduled_favi_gr import MAX_SCAN_AGE_SECONDS, save, source_is_fresh
 
 
 def tick(mount, should_stop=lambda: False, deadline=None):
@@ -47,7 +47,7 @@ def tick(mount, should_stop=lambda: False, deadline=None):
                     "source_products": report.get("source_products")}
         if not report.get("source_complete"):
             raise RuntimeError("Incomplete RO source generation")
-        if time.time() - state["started_at"] > MAX_SCAN_AGE_SECONDS:
+        if not source_is_fresh(state["started_at"], report, time.time()):
             state.update(generation=None, rejected_generation=generation,
                          last_error="StaleGeneration", next_run_at=time.time() + 300)
             save(path, state)

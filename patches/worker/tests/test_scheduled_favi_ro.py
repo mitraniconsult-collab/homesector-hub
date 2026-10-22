@@ -1,5 +1,6 @@
 """RO preview keeps its pointer when a resumed source becomes stale."""
 import json
+from datetime import datetime, timezone
 
 from feeds import scheduled_favi_ro as schedule
 
@@ -28,3 +29,21 @@ def test_stale_ro_scan_is_not_published(tmp_path, monkeypatch):
     assert publishes == []
     saved = json.loads((tmp_path / "favi-ro-schedule.json").read_text())
     assert saved["generation"] is None
+
+
+def test_ro_long_scan_with_recent_source_can_finish_privately(tmp_path, monkeypatch):
+    monkeypatch.setenv("FEED_DURABLE_STORAGE_CONFIRMED", "yes")
+    monkeypatch.setenv("FEED_FAVI_RO_PREVIEW_PUBLISH", "no")
+    monkeypatch.setattr(schedule.os.path, "ismount", lambda root: True)
+    now = 1000.0 + 8 * 3600
+    monkeypatch.setattr(schedule.time, "time", lambda: now)
+    from feeds import favi_ro_catalog
+    monkeypatch.setattr(favi_ro_catalog, "execute", lambda **kw: {
+        "status": "unpublished_preview", "source_complete": True,
+        "source_snapshot_at": datetime.fromtimestamp(
+            1000 + 4 * 3600, timezone.utc).isoformat(),
+        "source_products": 19303, "xml_items": 300, "sha256": "abc"})
+    (tmp_path / "favi-ro-schedule.json").write_text(json.dumps({
+        "generation": "a" * 32, "started_at": 1000.0}))
+    result = schedule.tick(tmp_path)
+    assert result["status"] == "private_complete"

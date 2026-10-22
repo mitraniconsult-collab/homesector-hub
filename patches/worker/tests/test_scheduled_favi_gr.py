@@ -4,6 +4,7 @@ import sys
 import tempfile
 import types
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -145,6 +146,18 @@ class ScheduledGreekFeedTests(unittest.TestCase):
                 self.root, now=1000 + scheduled_favi_gr.MAX_SCAN_AGE_SECONDS + 1)
         self.assertEqual(old["status"], "stale_generation_rejected")
         self.assertFalse(publications)
+
+    def test_long_scan_accepts_recent_completed_source_with_absolute_cap(self):
+        fresh = {"source_snapshot_at": datetime.fromtimestamp(
+            1000 + 3 * 3600, timezone.utc).isoformat()}
+        self.assertTrue(scheduled_favi_gr.source_is_fresh(
+            1000, fresh, 1000 + 8 * 3600))
+        self.assertFalse(scheduled_favi_gr.source_is_fresh(
+            1000, fresh, 1000 + 10 * 3600))
+        self.assertFalse(scheduled_favi_gr.source_is_fresh(
+            1000, {"source_snapshot_at": datetime.fromtimestamp(
+                1000 + 11 * 3600, timezone.utc).isoformat()},
+            1000 + 12 * 3600 + 1))
 
     def test_deadline_yield_preserves_generation_without_publication(self):
         calls, publications = [], []
