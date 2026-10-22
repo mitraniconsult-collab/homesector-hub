@@ -15,6 +15,38 @@ from .blob_delivery import publish_comparison
 from .xml_audit import validate_xml
 
 
+def reclaim_completed_runs(root, active, previous):
+    """Free older BG journals while preserving the current and last live run.
+
+    An unfinished active journal is never removed. The public feed is an
+    immutable Blob, but retaining its source run keeps local audit possible.
+    """
+    runs = root / 'google-bg-runs'
+    if not runs.is_dir():
+        return []
+    protected = {active, previous}
+    removed = []
+    for folder in runs.iterdir():
+        if (folder.name in protected or not folder.is_dir() or folder.is_symlink()
+                or len(folder.name) != 32 or any(c not in '0123456789abcdef' for c in folder.name)):
+            continue
+        manifest = folder / 'google-bg' / 'manifest.json'
+        if not manifest.is_file():
+            continue
+        try:
+            complete = json.loads(manifest.read_text()).get('finished') is True
+        except (OSError, ValueError):
+            continue
+        if complete:
+            shutil.rmtree(folder)
+            removed.append(folder.name)
+    return removed
+
+
+def _error_detail(exc):
+    return ' errno=' + str(exc.errno) if isinstance(exc, OSError) else ''
+
+
 def save(path, state):
     temp = path.with_suffix('.tmp')
     with temp.open('w') as file:
@@ -48,6 +80,9 @@ def tick(mount, should_stop=lambda: False, now=None):
     run_root = root / 'google-bg-runs' / generation
     folder = run_root / 'google-bg'
     try:
+        removed = reclaim_completed_runs(root, generation, state.get('last_generation'))
+        if removed:
+            print('[feed-storage] removed_completed_bg_runs=' + str(len(removed)), flush=True)
         result = execute(batch_limit=10, root=run_root, bg_only=True, should_stop=should_stop)
         state.update(progress=result, updated_at=now)
         save(path, state)
@@ -85,14 +120,14 @@ def tick(mount, should_stop=lambda: False, now=None):
                      next_run_at=completed + interval, last_items=receipt['items'],
                      sha256=receipt['sha256'], receipt=receipt, last_error=None, retry_at=0)
         save(path, state)
-        # Keep three complete local runs plus any interrupted active generation.
-        runs = sorted((root / 'google-bg-runs').iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)
-        for old in runs[3:]:
-            if old.is_dir() and not old.is_symlink() and old.name != generation:
-                shutil.rmtree(old)
+        # The new run is now the public baseline; the previous published run
+        # may be removed on the next tick, when this run is protected.
         return {**receipt, 'status': 'scheduled_snapshot_published', 'generation': generation,
                 'next_run_at': state['next_run_at']}
     except Exception as exc:
+        if isinstance(exc, OSError):
+            print('[feed-storage] error errno=' + str(exc.errno) +
+                  ' free_bytes=' + str(shutil.disk_usage(root).free), flush=True)
         # Keep the checkpoint and last public feed. Retry on the same cursor.
         state.update(last_error=type(exc).__name__, retry_at=now + 300, updated_at=now)
         save(path, state)
@@ -128,6 +163,7 @@ def run(mount, should_stop):
                     print('[favi-gr-scan] ' + json.dumps(gr, sort_keys=True), flush=True)
                 except Exception as exc:
                     print('[favi-gr-scan] FAILED type=' + type(exc).__name__ +
+                          _error_detail(exc) +
                           (' reason=' + str(exc)[:100] if isinstance(exc, RuntimeError) else ''),
                           flush=True)
             if os.getenv('FEED_FAVI_RO_SCAN') == 'yes' and not should_stop():
@@ -141,9 +177,11 @@ def run(mount, should_stop):
                     if ro.get('status') == 'incomplete':
                         continue
                 except Exception as exc:
-                    print('[favi-ro-scan] FAILED type=' + type(exc).__name__, flush=True)
+                    print('[favi-ro-scan] FAILED type=' + type(exc).__name__ +
+                          _error_detail(exc), flush=True)
         except Exception as exc:
-            print('[feed-schedule] FAILED type=' + type(exc).__name__, flush=True)
+            print('[feed-schedule] FAILED type=' + type(exc).__name__ +
+                  _error_detail(exc), flush=True)
         for _ in range(6):
             if should_stop():
                 return
