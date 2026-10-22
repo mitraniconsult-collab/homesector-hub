@@ -120,6 +120,11 @@ def tick(mount, should_stop=lambda: False, now=None):
                 print('[favi-preview] ' + json.dumps({
                     'generation': generation, 'xml_items': favi['xml_items'],
                     'blocked_missing_parent_group': favi['blocked_missing_parent_group'],
+                    'skipped_no_checked_mapping': favi['skipped_no_checked_mapping'],
+                    'blocked_legacy_id_migration': favi['blocked_legacy_id_migration'],
+                    'serializer_rejections': favi['serializer_rejections'],
+                    'categories_mapped': favi['categories_mapped'],
+                    'top_unmapped_shopify_taxonomy': favi['top_unmapped_shopify_taxonomy'],
                 }, sort_keys=True), flush=True)
             except Exception as exc:
                 print('[favi-preview] FAILED type=' + type(exc).__name__, flush=True)

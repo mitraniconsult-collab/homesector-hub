@@ -69,6 +69,8 @@ def create_preview(mount, source_folder=None):
             if is_safe_favi_id(oldid):
                 historic[gid] = oldid
     prepared, causes, per_path = [], Counter(), Counter()
+    unmapped_taxonomy = Counter()
+    legacy_id_patterns = Counter()
     new_ids, old_ids = 0, 0
     records_path = source_folder / "availability-corrected-records.jsonl"
     if not records_path.exists():
@@ -82,6 +84,7 @@ def create_preview(mount, source_folder=None):
             favi_category = CATEGORY_MAP_BG.get(taxonomy)
             if not favi_category:
                 causes["no_checked_category_mapping"] += 1
+                unmapped_taxonomy[taxonomy or "(missing)"] += 1
                 continue
             if not row.get("item_group_id"):
                 causes["missing_shopify_parent_group"] += 1
@@ -93,6 +96,7 @@ def create_preview(mount, source_folder=None):
                 # Never silently change IDs for products in the active legacy
                 # XML. These require explicit FAVI migration approval.
                 causes["legacy_id_requires_migration_review"] += 1
+                legacy_id_patterns["punctuated"] += 1
                 continue
             else:
                 row["id"] = variant_feed_id(row["id"])
@@ -125,6 +129,8 @@ def create_preview(mount, source_folder=None):
         "category_paths_await_favi_approval": True,
         "historical_ids_not_verified_in_favi_panel": True,
         "top_mapped_paths": per_path.most_common(15),
+        "top_unmapped_shopify_taxonomy": unmapped_taxonomy.most_common(30),
+        "legacy_id_patterns_held": dict(legacy_id_patterns),
         "sha256": hashlib.sha256(xml).hexdigest(),
         "approved_by_favi": False, "published": False,
     }
