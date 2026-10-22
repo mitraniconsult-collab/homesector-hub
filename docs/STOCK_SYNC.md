@@ -13,7 +13,7 @@ Uses Shopify inventoryQuantity (aggregate available inventory) per tracked varia
 | Confirmed stopped | any | DENY | clear |
 | Missing/unknown status, untracked inventory | any | unchanged | unchanged |
 
-STOPPED IDs must be confirmed from Easyrea and configured in EASYREA_STOPPED_STATUS_IDS. Recognized explicit stopped labels are also supported. Unknown IDs are not guessed. A real run aborts if over 25% of matching variants need review. Empty/incomplete supplier pages abort before writes. Only exact SKU matches for the configured Easyrea vendors are considered.
+STOPPED IDs must be confirmed from Easyrea and configured in EASYREA_STOPPED_STATUS_IDS. Recognized explicit stopped labels are also supported. Unknown IDs are not guessed. A real run aborts if over 25% of matching variants need review. Malformed supplier responses, repeated pages, and substantial count gaps abort before writes. A premature empty page is retried twice. After three empty responses, a row-count shortfall is tolerated only when it is at most both 0.1% of totalResults and 20 rows; only returned SKUs are processed and missing SKUs stay unchanged/review. Supplier row counts include duplicate SKUs and are logged separately from unique codes. Only exact SKU matches for the configured Easyrea vendors are considered.
 
 custom.expected_arrival is written per variant. The legacy product field is maintained only for a complete group with an identical date/no-date for every variant. Conflicts clear the product field and are reported; the storefront must read the selected variant field to show differing dates. Existing custom templates are preserved; only default/preorder are switched automatically.
 
