@@ -18,7 +18,39 @@ export async function GET() {
       return NextResponse.json({ error: "Worker feed status unavailable" }, { status: 502 });
     }
     const payload = await response.json();
-    return NextResponse.json(payload, { headers: { "Cache-Control": "no-store" } });
+    const entries = Array.isArray(payload.feeds) ? payload.feeds : [];
+    const publicHub = "https://hub.homesector.bg";
+    const previews = await Promise.all(["GR", "RO", "HU"].map(async market => {
+      const reportUrl = new URL(`/feeds/favi/${market}-preview-report.json`, publicHub);
+      try {
+        const reportResponse = await fetch(reportUrl, {
+          cache: "no-store", signal: AbortSignal.timeout(10000),
+        });
+        if (!reportResponse.ok) return null;
+        const report = await reportResponse.json();
+        const count = Number(report.xml_items);
+        const generated = Date.parse(report.generated_at);
+        if (report.market !== market || report.source_complete !== true ||
+            !Number.isSafeInteger(count) || count <= 0 || !Number.isFinite(generated)) {
+          return null;
+        }
+        return { channel: "favi", market,
+          status: Date.now() - generated > 30 * 3600_000 ? "preview_stale" : "unpublished_preview",
+          product_count: count, last_updated: report.generated_at,
+          xml_url: new URL(`/feeds/favi/${market}-preview.xml`, publicHub).toString(),
+          report_url: reportUrl.toString(),
+        };
+      } catch { return null; }
+    }));
+    for (const preview of previews) {
+      if (!preview) continue;
+      const index = entries.findIndex((feed: {channel: string; market: string}) =>
+        feed.channel === "favi" && feed.market === preview.market);
+      if (index >= 0) entries[index] = preview;
+    }
+    return NextResponse.json({ ...payload, feeds: entries }, {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch {
     return NextResponse.json({ error: "Worker unreachable" }, { status: 502 });
   }

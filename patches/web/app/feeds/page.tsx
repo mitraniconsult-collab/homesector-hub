@@ -10,7 +10,7 @@ const feeds = channels.flatMap(channel => markets
 
 export default function FeedsPage() {
   const [filter, setFilter] = useState("all");
-  const [statuses, setStatuses] = useState<Record<string, { status: string; product_count: number | null; xml_url: string | null }>>({});
+  const [statuses, setStatuses] = useState<Record<string, { status: string; product_count: number | null; xml_url: string | null; report_url?: string | null }>>({});
   const [error, setError] = useState("");
   useEffect(() => {
     fetch("/api/feeds", { cache: "no-store" }).then(async response => {
@@ -25,7 +25,7 @@ export default function FeedsPage() {
       <div>
         <h1 className="text-3xl font-semibold">Feed Manager</h1>
         <p className="mt-2 text-sm text-gray-500">
-          Shopify Markets — Google, Meta, FAVI and Biano. Feeds are not published yet.
+          Shopify Markets — Google, Meta, FAVI and Biano. FAVI previews are for review before submission.
         </p>
       </div>
       <div className="flex flex-wrap gap-2" aria-label="Filter market">
@@ -43,7 +43,7 @@ export default function FeedsPage() {
         <table className="w-full text-left text-sm">
           <thead className="bg-gray-50"><tr>
             <th className="p-3">Channel</th><th className="p-3">Market</th>
-            <th className="p-3">Status</th><th className="p-3">XML URL</th>
+            <th className="p-3">Status</th><th className="p-3">Items</th><th className="p-3">XML and report</th>
           </tr></thead>
           <tbody>
             {visible.map(feed => (
@@ -51,7 +51,8 @@ export default function FeedsPage() {
                 <td className="p-3 uppercase">{feed.channel}</td>
                 <td className="p-3">{feed.market}</td>
                 <td className="p-3">{statuses[feed.channel + feed.market]?.status || "Not verified"}</td>
-                <td className="p-3 text-gray-500">{statuses[feed.channel + feed.market]?.xml_url ? <a href={statuses[feed.channel + feed.market].xml_url!} rel="noopener noreferrer" target="_blank">Open XML</a> : "Pending validation"}</td>
+                <td className="p-3">{statuses[feed.channel + feed.market]?.product_count ?? "—"}</td>
+                <td className="p-3 text-gray-500">{statuses[feed.channel + feed.market]?.xml_url ? <><a href={statuses[feed.channel + feed.market].xml_url!} rel="noopener noreferrer" target="_blank">Open XML</a>{statuses[feed.channel + feed.market].report_url && <> · <a href={statuses[feed.channel + feed.market].report_url!} rel="noopener noreferrer" target="_blank">Report</a></>}</> : "Pending validation"}</td>
               </tr>
             ))}
           </tbody>
