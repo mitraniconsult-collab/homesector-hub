@@ -54,8 +54,10 @@ def collect(journal, products, categories, store, token, deadline, should_stop):
                 advance("urls")
                 continue
             batch = ids[index:index + 50]
-            state["translated_map"].update(fetch_translations(
-                batch, store=store, token=token, market="RO"))
+            values = fetch_translations(batch, store=store, token=token, market="RO")
+            if set(values) != set(batch):
+                raise RuntimeError("Incomplete RO translation batch")
+            state["translated_map"].update(values)
         elif stage == "urls":
             if index >= len(candidates):
                 advance("collections")
@@ -94,17 +96,24 @@ def collect(journal, products, categories, store, token, deadline, should_stop):
                 advance("ready")
                 continue
             batch = variant_ids[index:index + 50]
-            state["variant_map"].update(fetch_variant_translations(
-                batch, "RO", store=store, token=token))
+            values = fetch_variant_translations(batch, "RO", store=store, token=token)
+            if set(values) != set(batch):
+                raise RuntimeError("Incomplete RO variant translation batch")
+            state["variant_map"].update(values)
         else:
             raise RuntimeError("Invalid RO finalize stage")
         state["next_index"] += len(batch)
         _save(path, state)
         print(f"[favi-ro-finalize] stage={stage} checked={state['next_index']}", flush=True)
     missing = len(ids) - len(state["verified_urls"])
+    variant_ids = list(dict.fromkeys(
+        v["id"] for p in candidates if p["id"] in
+        (state["verified_urls"] | state["collection_urls"])
+        for v in p["variants"]["nodes"] if v.get("selectedOptions")))
     if (set(state["translated_map"]) != set(ids)
             or state["url_check"]["checked"] != len(ids)
             or state["collection_check"]["checked"] +
-               state["collection_check"]["without_collection"] != missing):
+               state["collection_check"]["without_collection"] != missing
+            or set(state["variant_map"]) != set(variant_ids)):
         raise RuntimeError("Incomplete RO finalize checkpoint")
     return {**state, "status": "ready"}

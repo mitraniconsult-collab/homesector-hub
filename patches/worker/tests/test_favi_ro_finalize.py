@@ -47,3 +47,25 @@ def test_ro_url_throttle_keeps_translations_and_cursor(tmp_path, monkeypatch):
     assert result["status"] == "ready"
     assert result["url_check"]["checked"] == 1
     assert calls == {"translations": 1, "urls": 2}
+
+
+def test_incomplete_ro_translation_batch_retries_same_batch(tmp_path, monkeypatch):
+    product = {"id": "p1", "handle": "one", "variants": {"nodes": []}}
+    categories = {"p1": {"market": "RO", "path": "oglinzi"}}
+    calls = []
+
+    def translations(ids, **kwargs):
+        calls.append(ids)
+        return {} if len(calls) == 1 else {"p1": {"RO": []}}
+
+    monkeypatch.setattr(finalize, "fetch_translations", translations)
+    monkeypatch.setattr(finalize, "verify_market_urls", lambda *a, **kw: (
+        {"p1": "https://homesector.ro/products/one"},
+        {"checked": 1, "verified": 1, "reasons": {"verified": 1}, "sample_handles": {}}))
+    with pytest.raises(RuntimeError, match="Incomplete RO translation batch"):
+        finalize.collect(Journal(tmp_path), [product], categories,
+                         "shop.myshopify.com", "token", float("inf"), lambda: False)
+    result = finalize.collect(Journal(tmp_path), [product], categories,
+                              "shop.myshopify.com", "token", float("inf"), lambda: False)
+    assert result["status"] == "ready"
+    assert calls == [["p1"], ["p1"]]

@@ -5,7 +5,7 @@ import time
 import uuid
 from pathlib import Path
 
-from .scheduled_favi_gr import save
+from .scheduled_favi_gr import MAX_SCAN_AGE_SECONDS, save
 
 
 def tick(mount, should_stop=lambda: False, deadline=None):
@@ -39,12 +39,19 @@ def tick(mount, should_stop=lambda: False, deadline=None):
                                "source_products": report.get("source_products")},
                      updated_at=now)
         save(path, state)
-        if report["status"] in ("incomplete", "yielded") or time.time() >= deadline:
-            return {"status": report["status"], "stage": report.get("stage"),
+        if (report["status"] in ("incomplete", "yielded") or should_stop()
+                or time.time() >= deadline):
+            status = "yielded" if should_stop() or time.time() >= deadline else report["status"]
+            return {"status": status, "stage": report.get("stage"),
                     "generation": generation,
                     "source_products": report.get("source_products")}
         if not report.get("source_complete"):
             raise RuntimeError("Incomplete RO source generation")
+        if time.time() - state["started_at"] > MAX_SCAN_AGE_SECONDS:
+            state.update(generation=None, rejected_generation=generation,
+                         last_error="StaleGeneration", next_run_at=time.time() + 300)
+            save(path, state)
+            return {"status": "stale_generation_rejected", "generation": generation}
         if os.getenv("FEED_FAVI_RO_PREVIEW_PUBLISH") == "yes":
             from .favi_ro_delivery import publish_preview
             receipt = publish_preview(root, folder)
