@@ -94,20 +94,13 @@ export default function FeedsPage() {
       <button className="btn secondary" type="button" onClick={() => void refresh()} disabled={loading}>{loading ? "Проверява…" : "Обнови статусите"}</button>
     </div>
     <div className="stack" aria-live="polite">
-      <section className="card" aria-labelledby="google-bg-title">
+      <section className="card" aria-labelledby="favi-bg-title">
         <div className="sectionTitle" style={{ margin: "0 0 12px" }}>
-          <h2 id="google-bg-title">Google Shopping · България</h2>
-          <span className="badge warn">Публичен XML за сравнение</span>
+          <h2 id="favi-bg-title">FAVI · България</h2>
+          <span className="badge warn">Подготовка</span>
         </div>
-        <p className="muted">Собственият XML и сравнението му с Feedhub. Статусът на проверката и подаването е показан по-долу.</p>
-        {google && <p>Наши варианти: <strong>{google.homesector_items?.toLocaleString("bg-BG") ?? "—"}</strong> · Feedhub: <strong>{google.feedhub_items?.toLocaleString("bg-BG") ?? "—"}</strong> · Съвпадащи: <strong>{google.matched_variants?.toLocaleString("bg-BG") ?? "—"}</strong></p>}
-        {google && <p>Проверка на XML: <strong>{google.xml_preflight?.passed === true ? "Премината" : google.xml_preflight?.passed === false ? "Има проблеми" : "—"}</strong> · Подаден към Merchant Center: <strong>{google.xml_preflight?.submitted === true ? "Да" : google.xml_preflight?.submitted === false ? "Не" : "—"}</strong> · Липсващи описания: <strong>{google.xml_preflight?.issues?.missing_description?.toLocaleString("bg-BG") ?? "—"}</strong></p>}
-        {google?.checked_at && <p className="muted">Сравнението е проверено на {new Date(google.checked_at).toLocaleString("bg-BG")}.</p>}
-        {errors.google && <p role="alert" className="notice">{errors.google}</p>}
-        <div className="actions" style={{ marginTop: 16 }}>
-          <a className="btn primary" href={links.google.xml} target="_blank" rel="noopener noreferrer">Отвори XML за сравнение</a>
-          <a className="btn secondary" href={links.google.report} target="_blank" rel="noopener noreferrer">Сравнение с Feedhub</a>
-        </div>
+        <p className="muted">Българският FAVI XML се изгражда от каталога на Shopify. Преди публичен преглед трябва да сверим историческите FAVI ID и да довършим категориите.</p>
+        <p className="notice">Няма готов адрес за подаване към FAVI. Вътрешният преглед не е финален фийд.</p>
       </section>
       <section className="card" aria-labelledby="favi-gr-title">
         <div className="sectionTitle" style={{ margin: "0 0 12px" }}>
@@ -153,6 +146,21 @@ export default function FeedsPage() {
           <span className="badge warn">Предстои</span>
         </div>
         <p className="muted">Унгарският фийд следва след пълния RO обход и проверка на HUF, преводи, категории и URL-и.</p>
+      </section>
+      <section className="card" aria-labelledby="catalog-bg-title">
+        <div className="sectionTitle" style={{ margin: "0 0 12px" }}>
+          <h2 id="catalog-bg-title">Каталог BG · вътрешно сравнение</h2>
+          <span className="badge warn">Диагностика</span>
+        </div>
+        <p className="muted">Този каталог и сравнението с Feedhub помагат за проверката на вариантите. XML е в Google формат и не е FAVI BG фийд.</p>
+        {google && <p>Наши варианти: <strong>{google.homesector_items?.toLocaleString("bg-BG") ?? "—"}</strong> · Feedhub: <strong>{google.feedhub_items?.toLocaleString("bg-BG") ?? "—"}</strong> · Съвпадащи: <strong>{google.matched_variants?.toLocaleString("bg-BG") ?? "—"}</strong></p>}
+        {google && <p>Проверка на XML: <strong>{google.xml_preflight?.passed === true ? "Премината" : google.xml_preflight?.passed === false ? "Има проблеми" : "—"}</strong> · Липсващи описания: <strong>{google.xml_preflight?.issues?.missing_description?.toLocaleString("bg-BG") ?? "—"}</strong></p>}
+        {google?.checked_at && <p className="muted">Сравнението е проверено на {new Date(google.checked_at).toLocaleString("bg-BG")}.</p>}
+        {errors.google && <p role="alert" className="notice">{errors.google}</p>}
+        <div className="actions" style={{ marginTop: 16 }}>
+          <a className="btn secondary" href={links.google.xml} target="_blank" rel="noopener noreferrer">Технически XML</a>
+          <a className="btn secondary" href={links.google.report} target="_blank" rel="noopener noreferrer">Сравнение с Feedhub</a>
+        </div>
       </section>
     </div>
     <p className="muted" style={{ marginTop: 18 }}>Тук се виждат наличните фийдове и отчетите им. Стартиране на генерация, промяна на правила и подаване към каналите ще се добавят след свързване с управлението на задачите.</p>
