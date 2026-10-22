@@ -134,3 +134,26 @@ def test_translated_size_uses_its_option_position_after_color():
         "Καρέκλα τραπεζαρίας Cleon — Μέγεθος: 160x230 cm",
     }
     assert {item.findtext(G + "color") for item in items} == {"Καφέ", "Μπεζ"}
+
+
+def test_other_verified_greek_options_distinguish_variants():
+    for option, label in (("Дизайн", "Σχέδιο"), ("Финиш", "Φινίρισμα"),
+                          ("Стъкло", "Γυαλί"), ("Капацитет", "Χωρητικότητα")):
+        p, t, _, c = sample()
+        for variant, value in zip(p["variants"]["nodes"], ("Първи", "Втори")):
+            variant["selectedOptions"] = [{"name": option, "value": value}]
+        greek = {
+            "gid://shopify/ProductVariant/17": [
+                {"key": "option1", "value": "Πρώτο", "outdated": False}],
+            "gid://shopify/ProductVariant/18": [
+                {"key": "option1", "value": "Δεύτερο", "outdated": False}],
+        }
+        xml, report = create_preview([p], c, {PRODUCT_ID}, translated_map=t,
+                                     translated_variant_map=greek)
+        items = ET.fromstring(xml).findall("./channel/item")
+        assert report["xml_items"] == 2
+        assert {item.findtext("title") for item in items} == {
+            f"Καρέκλα τραπεζαρίας Cleon — {label}: Πρώτο",
+            f"Καρέκλα τραπεζαρίας Cleon — {label}: Δεύτερο",
+        }
+        assert {item.findtext(G + "item_group_id") for item in items} == {"shopifyp12"}
