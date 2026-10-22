@@ -25,7 +25,8 @@ class BlobStore:
         parts = token.split("_")
         if not token.startswith("vercel_blob_rw_") or len(parts) < 5 or not parts[3].isalnum():
             raise ValueError("Feed Blob credential is not configured")
-        if prefix not in (PREFIX, 'feeds/favi-gr/', 'feeds/favi-ro/'):
+        if prefix not in (PREFIX, 'feeds/favi-gr/', 'feeds/favi-ro/',
+                          'feeds/favi-hu/'):
             raise ValueError('Invalid feed Blob prefix')
         self.token, self.store_id, self.prefix = token, parts[3], prefix
 
