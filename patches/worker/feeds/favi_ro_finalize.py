@@ -7,7 +7,7 @@ from pathlib import Path
 
 from .favi_gr_urls import verify_market_urls
 from .favi_gr_collection_urls import verify_collection_urls
-from .favi_url_eligibility import has_localized_copy
+from .favi_url_eligibility import has_localized_copy, reusable_urls
 from .shopify_translations import fetch_translations, fetch_variant_translations
 
 VERSION = 1
@@ -41,6 +41,8 @@ def collect(journal, products, categories, store, token, deadline, should_stop):
         _save(path, state)
     candidates = [p for p in products if p["id"] in categories]
     ids = [p["id"] for p in candidates]
+    reused_direct, reused_collection = reusable_urls(
+        journal, candidates, state["translated_map"], "RO")
 
     def advance(stage):
         state.update(stage=stage, next_index=0)
@@ -53,6 +55,8 @@ def collect(journal, products, categories, store, token, deadline, should_stop):
         if stage == "translations":
             if index >= len(ids):
                 advance("urls")
+                reused_direct, reused_collection = reusable_urls(
+                    journal, candidates, state["translated_map"], "RO")
                 continue
             batch = ids[index:index + 50]
             values = fetch_translations(batch, store=store, token=token, market="RO")
@@ -66,14 +70,21 @@ def collect(journal, products, categories, store, token, deadline, should_stop):
             batch = candidates[index:index + 20]
             eligible = [p for p in batch if has_localized_copy(
                 state["translated_map"], p["id"], "RO")]
+            cached = {p["id"]: reused_direct[p["id"]] for p in eligible
+                      if p["id"] in reused_direct}
+            remaining = [p for p in eligible if p["id"] not in cached]
             urls, check = verify_market_urls(
-                eligible, categories, translated_map=state["translated_map"], market="RO")
-            if check["checked"] != len(eligible):
+                remaining, categories, translated_map=state["translated_map"], market="RO")
+            if check["checked"] != len(remaining):
                 raise RuntimeError("Incomplete RO URL batch")
             skipped = len(batch) - len(eligible)
-            check["checked"] += skipped
+            check["checked"] += skipped + len(cached)
+            check["verified"] += len(cached)
+            check["reasons"]["verified_reused"] = (
+                check["reasons"].get("verified_reused", 0) + len(cached))
             check["reasons"]["skipped_unlocalized_copy"] = (
                 check["reasons"].get("skipped_unlocalized_copy", 0) + skipped)
+            state["verified_urls"].update(cached)
             state["verified_urls"].update(urls)
             aggregate = state["url_check"]
             aggregate["checked"] += check["checked"]
@@ -90,8 +101,14 @@ def collect(journal, products, categories, store, token, deadline, should_stop):
                 advance("variants")
                 continue
             batch = missing[index:index + 20]
+            cached = {p["id"]: reused_collection[p["id"]] for p in batch
+                      if p["id"] in reused_collection}
+            remaining = [p for p in batch if p["id"] not in cached]
             urls, check = verify_collection_urls(
-                batch, set(), store, token, market="RO")
+                remaining, set(), store, token, market="RO")
+            check["checked"] += len(cached)
+            check["verified"] += len(cached)
+            state["collection_urls"].update(cached)
             state["collection_urls"].update(urls)
             for key in ("checked", "verified", "without_collection"):
                 state["collection_check"][key] += check.get(key, 0)

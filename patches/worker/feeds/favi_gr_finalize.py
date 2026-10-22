@@ -11,7 +11,7 @@ from pathlib import Path
 
 from .favi_gr_collection_urls import verify_collection_urls
 from .favi_gr_urls import verify_market_urls
-from .favi_url_eligibility import has_localized_copy
+from .favi_url_eligibility import has_localized_copy, reusable_urls
 from .shopify_auth import get_admin_token
 from .shopify_translations import fetch_translations, fetch_variant_translations
 
@@ -88,6 +88,8 @@ def collect(journal, products, categories, manual_urls, store, token, deadline, 
         raise RuntimeError("Invalid GR finalize checkpoint")
     candidates = [p for p in products if p["id"] in categories]
     ids = [p["id"] for p in candidates]
+    reused_direct, reused_collection = reusable_urls(
+        journal, candidates, state["translated_map"], "GR")
     def yielding():
         return should_stop() or time.time() >= deadline
     def paused():
@@ -101,6 +103,8 @@ def collect(journal, products, categories, manual_urls, store, token, deadline, 
         if stage == "translations":
             if index >= len(ids):
                 _advance(path, state, "direct_urls")
+                reused_direct, reused_collection = reusable_urls(
+                    journal, candidates, state["translated_map"], "GR")
                 continue
             batch = ids[index:index + TRANSLATION_BATCH]
             values = fetch_translations(batch, store=store, token=token, market="GR")
@@ -115,14 +119,21 @@ def collect(journal, products, categories, manual_urls, store, token, deadline, 
             batch = candidates[index:index + URL_BATCH]
             eligible = [p for p in batch if has_localized_copy(
                 state["translated_map"], p["id"], "GR")]
+            cached = {p["id"]: reused_direct[p["id"]] for p in eligible
+                      if p["id"] in reused_direct}
+            remaining = [p for p in eligible if p["id"] not in cached]
             urls, check = verify_market_urls(
-                eligible, categories, translated_map=state["translated_map"])
-            if check["checked"] != len(eligible):
+                remaining, categories, translated_map=state["translated_map"])
+            if check["checked"] != len(remaining):
                 raise RuntimeError("Incomplete GR direct URL batch")
             skipped = len(batch) - len(eligible)
-            check["checked"] += skipped
+            check["checked"] += skipped + len(cached)
+            check["verified"] += len(cached)
+            check["reasons"]["verified_reused"] = (
+                check["reasons"].get("verified_reused", 0) + len(cached))
             check["reasons"]["skipped_unlocalized_copy"] = (
                 check["reasons"].get("skipped_unlocalized_copy", 0) + skipped)
+            state["auto_urls"].update(cached)
             state["auto_urls"].update(urls)
             aggregate = state["url_check"]
             _accumulate(aggregate, check, ("checked", "verified"))
@@ -139,8 +150,14 @@ def collect(journal, products, categories, manual_urls, store, token, deadline, 
                 _advance(path, state, "variants")
                 continue
             batch = missing[index:index + URL_BATCH]
+            cached = {p["id"]: reused_collection[p["id"]] for p in batch
+                      if p["id"] in reused_collection}
+            remaining = [p for p in batch if p["id"] not in cached]
             urls, check = verify_collection_urls(
-                batch, set(), store, token or get_admin_token(store))
+                remaining, set(), store, token or get_admin_token(store))
+            check["checked"] += len(cached)
+            check["verified"] += len(cached)
+            state["collection_urls"].update(cached)
             state["collection_urls"].update(urls)
             _accumulate(state["collection_check"], check,
                         ("checked", "verified", "without_collection"))
