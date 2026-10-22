@@ -30,7 +30,7 @@ class AlternateSourceFolderTests(unittest.TestCase):
         blob.BlobStore = BlobStore
         audit = types.ModuleType("feeds.xml_audit")
         audit.validate_xml = lambda xml, market, max_issues: {
-            "items": 2, "unique_ids": 2,
+            "items": 2, "unique_ids": 2, "passed": True,
         }
         with patch.dict(sys.modules, {
             "feeds.blob_delivery": blob, "feeds.xml_audit": audit,
@@ -44,7 +44,15 @@ class AlternateSourceFolderTests(unittest.TestCase):
                 root = Path(directory)
                 source = root / "favi-gr-runs" / ("a" * 32) / "favi-gr-source"
                 source.mkdir(parents=True)
-                (source / "favi-gr-private.xml").write_bytes(b"<rss/>")
+                (source / "favi-gr-private.xml").write_bytes(
+                    b'<rss xmlns:g="http://base.google.com/ns/1.0"><channel>'
+                    b'<item><g:id>one</g:id><link>https://homesector.gr/products/one?variant=1</link>'
+                    b'<g:product_type>Category</g:product_type><g:item_group_id>parent</g:item_group_id>'
+                    b'<title>One</title><description>One detail</description></item>'
+                    b'<item><g:id>two</g:id><link>https://homesector.gr/products/one?variant=2</link>'
+                    b'<g:product_type>Category</g:product_type><g:item_group_id>parent</g:item_group_id>'
+                    b'<title>Two</title><description>Two detail</description></item>'
+                    b'</channel></rss>')
                 (source / "favi-gr-report.json").write_text(json.dumps({
                     "source_complete": True, "xml_items": 2,
                     "source_snapshot_at": "2026-10-21T12:00:00+00:00",
