@@ -5,6 +5,7 @@ interpret a throttled response as an invalid product URL.
 """
 import threading
 import time
+import os
 
 import requests
 
@@ -14,8 +15,11 @@ class StorefrontRateLimited(RuntimeError):
 
 
 class StorefrontLimiter:
-    def __init__(self, min_interval=0.5, clock=None, sleep=None):
+    def __init__(self, min_interval=0.5, clock=None, sleep=None, cooldown=300.0):
+        if not 0.5 <= min_interval <= 30 or not 300 <= cooldown <= 86400:
+            raise ValueError("Invalid storefront pacing configuration")
         self.min_interval = min_interval
+        self.cooldown = cooldown
         self.interval = min_interval
         self.clock = clock or time.monotonic
         self.sleep = sleep or time.sleep
@@ -37,7 +41,7 @@ class StorefrontLimiter:
         # The thread pools remain bounded but never burst at the storefront.
         with self.lock:
             if self.clock() < self.blocked_until:
-                raise StorefrontRateLimited("Greek storefront 429 cooldown")
+                raise StorefrontRateLimited("FAVI storefront 429 cooldown")
             for attempt in range(2):
                 delay = self.next_at - self.clock()
                 if delay > 0:
@@ -56,8 +60,10 @@ class StorefrontLimiter:
                     self.next_at = self.clock() + max(2.0, self._retry_after(response))
             # The scheduler keeps the current generation and resumes the same
             # unfinished batch after its five-minute retry window.
-            self.blocked_until = self.clock() + 300.0
-            raise StorefrontRateLimited("Greek storefront returned HTTP 429 twice")
+            self.blocked_until = self.clock() + self.cooldown
+            raise StorefrontRateLimited("FAVI storefront returned HTTP 429 twice")
 
 
-storefront_limiter = StorefrontLimiter()
+storefront_limiter = StorefrontLimiter(
+    min_interval=float(os.getenv("FEED_STOREFRONT_MIN_INTERVAL_SECONDS", "0.5")),
+    cooldown=float(os.getenv("FEED_STOREFRONT_429_COOLDOWN_SECONDS", "300")))

@@ -70,6 +70,21 @@ class StorefrontRateLimitTests(unittest.TestCase):
         # A whole checkpoint batch creates only two external requests.
         self.assertEqual(get.call_count, 2)
 
+    def test_longer_cooldown_can_be_configured_for_persistent_429(self):
+        clock = Clock()
+        limiter = StorefrontLimiter(min_interval=2, cooldown=900,
+                                    clock=clock.monotonic, sleep=clock.sleep)
+        with patch("feeds.favi_gr_rate_limit.requests.get",
+                   side_effect=[Response(429), Response(429), Response(200)]) as get:
+            with self.assertRaises(StorefrontRateLimited):
+                limiter.get("https://homesector.ro/products/chair", timeout=5)
+            clock.sleep(300)
+            with self.assertRaises(StorefrontRateLimited):
+                limiter.get("https://homesector.ro/products/chair", timeout=5)
+            self.assertEqual(get.call_count, 2)
+            clock.sleep(600)
+            self.assertEqual(limiter.get("https://homesector.ro/products/chair", timeout=5).status_code, 200)
+
 
 if __name__ == "__main__":
     unittest.main()
