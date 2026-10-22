@@ -6,6 +6,7 @@ and the public Greek page responds with the same product handle on the GR host.
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import quote, unquote, urlparse
 import requests
+from .favi_gr_rate_limit import storefront_limiter
 from .batch_job import post_graphql
 
 QUERY = """
@@ -57,7 +58,7 @@ def _check(product, collections):
     for collection in collections:
         path = "/collections/" + quote(collection, safe="-") + "/products/" + quote(handle, safe="-")
         try:
-            response = requests.get("https://homesector.gr" + path, timeout=5,
+            response = storefront_limiter.get("https://homesector.gr" + path, timeout=5,
                                     allow_redirects=True,
                                     headers={"User-Agent": "HomesectorFeedVerifier/1.0"})
             final = urlparse(response.url)
