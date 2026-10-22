@@ -5,6 +5,9 @@ The remaining products are reported as unmapped, never assigned a broad guess.
 """
 
 TAXONOMY_TO_FAVI_RO = {
+    "gid://shopify/TaxonomyCategory/hg-11-10-4-1": "bucătărie > servirea mesei > vase > castroane",
+    "gid://shopify/TaxonomyCategory/hg-11-10-4-3": "bucătărie > servirea mesei > vase > farfurii",
+    "gid://shopify/TaxonomyCategory/hg-11-4-6": "bucătărie > recipiente alimente",
     "gid://shopify/TaxonomyCategory/hg-11-2-3-13-1": "bucătărie > accesorii pentru gătit > tigăi",
     "gid://shopify/TaxonomyCategory/hg-10-16-6": "Cutii și coșuri pentru depozitare",
     "gid://shopify/TaxonomyCategory/hg-10-9-16": "echipament pentru baie > accesorii pentru baie > coșuri de rufe",
@@ -43,11 +46,19 @@ TAXONOMY_TO_FAVI_RO = {
     "gid://shopify/TaxonomyCategory/hg-10-18-4-1": "bucătărie > organizare și curățenie > coșuri de gunoi",
 }
 
+# Shopify's food-container category is wrong for these two source products.
+AUTO_CATEGORY_EXCLUSIONS = {
+    "gid://shopify/Product/10980173709579": "gid://shopify/TaxonomyCategory/hg-11-4-6",
+    "gid://shopify/Product/8730408747275": "gid://shopify/TaxonomyCategory/hg-11-4-6",
+}
+
 
 def categories_for_products(products, explicit=None):
     result = {}
     for product in products:
         taxonomy = (product.get("category") or {}).get("id")
+        if AUTO_CATEGORY_EXCLUSIONS.get(product["id"]) == taxonomy:
+            continue
         path = TAXONOMY_TO_FAVI_RO.get(taxonomy)
         if path:
             result[product["id"]] = {"market": "RO", "verified": True, "path": path}

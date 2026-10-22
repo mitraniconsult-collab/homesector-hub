@@ -4,6 +4,9 @@ Each leaf was checked against the named live FAVI category; unrelated taxonomy
 IDs remain unmapped. FAVI can adjust its own category match at onboarding.
 """
 TAXONOMY_TO_FAVI_GR = {
+    "gid://shopify/TaxonomyCategory/hg-11-10-4-3": (
+        "Πιατικά > Πιάτα σερβιρίσματος",
+        "https://favi.gr/proionta/kathgoria/piata-servirismatos"),
     "gid://shopify/TaxonomyCategory/hg-10-16-6": (
         "Κουτιά αποθήκευσης και οργάνωσης > Κουτιά αποθήκευσης",
         "https://favi.gr/proionta/kathgoria/koutia-apothikeusis-kai-organwsis/koutia-apothikefsis"),
