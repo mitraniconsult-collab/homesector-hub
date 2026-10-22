@@ -75,9 +75,9 @@ def _check(product, collections, domain="homesector.gr"):
 
 def verify_collection_urls(products, already_verified, store, token, workers=16,
                            market="GR"):
-    if market not in ("GR", "RO"):
+    if market not in ("GR", "RO", "HU"):
         raise ValueError("Unsupported FAVI collection market")
-    domain = "homesector." + ("gr" if market == "GR" else "ro")
+    domain = "homesector." + market.lower()
     if not 1 <= workers <= 16:
         raise ValueError("Invalid URL verification concurrency")
     missing = {p["id"]: p for p in products if p.get("id") not in already_verified}

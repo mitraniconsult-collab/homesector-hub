@@ -33,10 +33,10 @@ def shopify_post(url, token, payload):
             time.sleep(min(30, 2 ** attempt))
     raise RuntimeError("Shopify retry limit reached")
 
-def catalog_query(bg_only=False, gr_only=False, ro_only=False):
-    if sum((bg_only, gr_only, ro_only)) > 1:
+def catalog_query(bg_only=False, gr_only=False, ro_only=False, hu_only=False):
+    if sum((bg_only, gr_only, ro_only, hu_only)) > 1:
         raise ValueError('Only one country filter is allowed')
-    countries = ('BG',) if bg_only else ('GR',) if gr_only else ('RO',) if ro_only else COUNTRIES
+    countries = ('BG',) if bg_only else ('GR',) if gr_only else ('RO',) if ro_only else ('HU',) if hu_only else COUNTRIES
     publication = "\n".join(
         f"published_{country}: publishedInContext(context: {{country: {country}}})"
         for country in countries
@@ -46,7 +46,7 @@ def catalog_query(bg_only=False, gr_only=False, ro_only=False):
         "{ price { amount currencyCode } }"
         for country in countries
     )
-    taxonomy = "category { id fullName }" if gr_only or ro_only else ""
+    taxonomy = "category { id fullName }" if gr_only or ro_only or hu_only else ""
     query = """
     query FeedMarkets($cursor: String) {
       products(first: 5, after: $cursor, sortKey: ID) {
@@ -73,7 +73,7 @@ def catalog_query(bg_only=False, gr_only=False, ro_only=False):
     }
     """
 
-    if gr_only or ro_only:
+    if gr_only or ro_only or hu_only:
         query = query.replace("products(first: 5,", "products(first: 25,")
         query = query.replace("variants(first: 25)", "variants(first: 5)")
     if bg_only:
@@ -117,11 +117,11 @@ def read_markets_catalog(store=None, token=None, version="2026-07", max_pages=10
             raise RuntimeError("Missing pagination cursor")
     raise RuntimeError("Shopify catalog pagination limit reached")
 
-def read_remaining_variants(url, token, product_id, cursor, bg_only=False, gr_only=False, ro_only=False):
+def read_remaining_variants(url, token, product_id, cursor, bg_only=False, gr_only=False, ro_only=False, hu_only=False):
     """Page through every variant; fail rather than silently drop any."""
-    if sum((bg_only, gr_only, ro_only)) > 1:
+    if sum((bg_only, gr_only, ro_only, hu_only)) > 1:
         raise ValueError('Only one country filter is allowed')
-    countries = ('BG',) if bg_only else ('GR',) if gr_only else ('RO',) if ro_only else COUNTRIES
+    countries = ('BG',) if bg_only else ('GR',) if gr_only else ('RO',) if ro_only else ('HU',) if hu_only else COUNTRIES
     if not cursor:
         raise RuntimeError("Missing variant cursor")
     pricing = "\n".join(

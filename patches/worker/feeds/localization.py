@@ -40,6 +40,10 @@ _RO_BASIC_COLORS = {
     "кафяв": "maro", "бежов": "bej", "бял": "alb",
     "черен": "negru", "син": "albastru", "зелен": "verde",
 }
+_HU_BASIC_COLORS = {
+    "кафяв": "barna", "бежов": "bézs", "бял": "fehér",
+    "черен": "fekete", "син": "kék", "зелен": "zöld",
+}
 
 
 def _has_cyrillic(value):
@@ -61,12 +65,13 @@ def localize_variant_color(row, variant_translations, market):
     # Never send the Bulgarian source label to an international FAVI catalog.
     output["color"] = None
     source = str(row.get("color") or "").casefold().strip()
-    expected = _GR_BASIC_COLORS.get(source) if market == "GR" else _RO_BASIC_COLORS.get(source)
+    expected = {"GR": _GR_BASIC_COLORS, "RO": _RO_BASIC_COLORS,
+                "HU": _HU_BASIC_COLORS}.get(market, {}).get(source)
     if market == "GR" and value and any("\u0370" <= c <= "\u03ff" for c in value) \
             and (not expected or value.casefold() == expected):
         output["color"] = value
         output["verified_variant_color"] = True
-    elif market == "RO" and value and not _has_cyrillic(value) \
+    elif market in ("RO", "HU") and value and not _has_cyrillic(value) \
             and (not expected or value.casefold() == expected) \
             and (value.casefold() != source or not _has_cyrillic(source)):
         output["color"] = value
@@ -98,12 +103,22 @@ _RO_VARIANT_OPTION_LABELS = {
     "стъкло": "Sticlă", "glass": "Sticlă",
     "капацитет": "Capacitate", "capacity": "Capacitate",
 }
+_HU_VARIANT_OPTION_LABELS = {
+    "аромат": "Illat", "fragrance": "Illat", "scent": "Illat",
+    "размер": "Méret", "size": "Méret",
+    "материал": "Anyag", "material": "Anyag",
+    "дизайн": "Minta", "design": "Minta",
+    "финиш": "Felület", "finish": "Felület",
+    "стъкло": "Üveg", "glass": "Üveg",
+    "капацитет": "Űrtartalom", "capacity": "Űrtartalom",
+}
 
 
 def localize_variant_details(row, variant_translations, market):
-    """Describe a variant using only its current Greek Shopify option values."""
+    """Describe a variant using only its current market Shopify option values."""
     output = dict(row)
-    if market not in ("GR", "RO") or output.get("verified_locale") != ("el" if market == "GR" else "ro"):
+    if market not in ("GR", "RO", "HU") or output.get("verified_locale") != \
+            {"GR": "el", "RO": "ro", "HU": "hu"}[market]:
         return output
     values = {entry.get("key"): str(entry.get("value") or "").strip()
               for entry in (variant_translations or [])
@@ -113,7 +128,8 @@ def localize_variant_details(row, variant_translations, market):
         source_name = str(option.get("name") or "").strip().casefold()
         if source_name in _GR_COLOR_OPTIONS:
             continue
-        label = (_GR_VARIANT_OPTION_LABELS if market == "GR" else _RO_VARIANT_OPTION_LABELS).get(source_name)
+        label = {"GR": _GR_VARIANT_OPTION_LABELS, "RO": _RO_VARIANT_OPTION_LABELS,
+                 "HU": _HU_VARIANT_OPTION_LABELS}[market].get(source_name)
         source_value = str(option.get("value") or "").strip()
         value = values.get("option" + str(index), "")
         if not label or not source_value or not value:

@@ -57,9 +57,9 @@ def verify_one(product):
 
 def verify_market_urls(products, category_by_product, workers=8, translated_map=None,
                        market="GR"):
-    if market not in ("GR", "RO"):
+    if market not in ("GR", "RO", "HU"):
         raise ValueError("Unsupported FAVI URL market")
-    domain = "homesector." + ("gr" if market == "GR" else "ro")
+    domain = "homesector." + market.lower()
     candidates = [p for p in products if p.get("id") in category_by_product]
     if not 1 <= workers <= 16:
         raise ValueError("Invalid URL verification concurrency")

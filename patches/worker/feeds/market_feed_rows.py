@@ -21,11 +21,11 @@ def prepare_market_rows(products, market, channel, verified_url_ids=None,
     verified_url_ids = set(verified_url_ids or [])
     if market != "BG" and translated_map is None:
         translation_ids = ([p["id"] for p in products if p.get("id") in verified_url_ids]
-                           if market in ("GR", "RO") and channel == "favi"
+                           if market in ("GR", "RO", "HU") and channel == "favi"
                            else [p["id"] for p in products])
         translated_map = fetch_translations(translation_ids, market=market)
     translations = translated_map or {}
-    if market in ("GR", "RO") and channel == "favi" and translated_variant_map is None:
+    if market in ("GR", "RO", "HU") and channel == "favi" and translated_variant_map is None:
         ids = [v["id"] for p in products if p.get("id") in verified_url_ids
                for v in (p.get("variants") or {}).get("nodes", [])
                if v.get("id") and v.get("selectedOptions")]
@@ -42,7 +42,7 @@ def prepare_market_rows(products, market, channel, verified_url_ids=None,
             row = apply_verified_translations(
                 row, translated.get(market, []), market,
                 url_verified=(product["id"] in verified_url_ids))
-            if market in ("GR", "RO") and channel == "favi":
+            if market in ("GR", "RO", "HU") and channel == "favi":
                 row = localize_variant_color(
                     row, translated_variant_map.get(row["id"], []), market)
                 row = localize_variant_details(
