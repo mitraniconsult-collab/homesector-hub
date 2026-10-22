@@ -23,6 +23,7 @@ from .markets_catalog import catalog_query, read_remaining_variants
 from .shopify_auth import get_admin_token
 from .shopify_translations import fetch_translations
 from .xml_audit import validate_xml
+from .favi_gr_audit import audit_favi_gr
 
 
 def _inputs(root):
@@ -165,10 +166,13 @@ def finalize(journal, root, store=None, token=None, publish=None,
         journal.manifest.stat().st_mtime, timezone.utc).isoformat()
     report["generated_at"] = datetime.now(timezone.utc).isoformat()
     report["sha256"] = hashlib.sha256(xml).hexdigest()
-    if report["xml_items"]:
-        audit = validate_xml(xml, "GR", max_issues=0)
-        if audit["items"] != report["xml_items"] or audit["unique_ids"] != audit["items"]:
-            raise RuntimeError("Greek preview audit failed")
+    audit = validate_xml(xml, "GR", max_issues=0)
+    favi_audit = audit_favi_gr(xml)
+    report["xml_preflight_audit"] = audit
+    report["favi_gr_preflight_audit"] = favi_audit
+    report["private_audit_passed"] = bool(audit["passed"] and favi_audit["passed"])
+    if audit["items"] != report["xml_items"] or audit["unique_ids"] != audit["items"]:
+        raise RuntimeError("Greek preview audit failed")
     folder = journal.root
     # Only private files on the mounted volume. A later publisher must require
     # category, language, variant and destination acceptance checks.

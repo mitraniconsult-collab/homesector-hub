@@ -21,6 +21,7 @@ from .markets_catalog import catalog_query, read_remaining_variants
 from .shopify_auth import get_admin_token
 from .shopify_translations import fetch_translations, fetch_variant_translations
 from .xml_audit import validate_xml
+from .favi_gr_audit import audit_favi_gr
 
 
 def execute(batch_limit=10, root=None, store=None, token=None,
@@ -132,10 +133,13 @@ def finalize(journal, store=None, token=None, deadline=None,
             for p in romanian if p.get("category")).most_common(50),
         "sha256": hashlib.sha256(xml).hexdigest(),
     })
-    if report["xml_items"]:
-        audit = validate_xml(xml, "RO", max_issues=0)
-        if audit["items"] != report["xml_items"] or audit["unique_ids"] != audit["items"]:
-            raise RuntimeError("Romanian preview audit failed")
+    audit = validate_xml(xml, "RO", max_issues=0)
+    favi_audit = audit_favi_gr(xml)
+    report["xml_preflight_audit"] = audit
+    report["favi_ro_preflight_audit"] = favi_audit
+    report["private_audit_passed"] = bool(audit["passed"] and favi_audit["passed"])
+    if audit["items"] != report["xml_items"] or audit["unique_ids"] != audit["items"]:
+        raise RuntimeError("Romanian preview audit failed")
     folder = journal.root
     for name, data in (("favi-ro-private.xml", xml),
                        ("favi-ro-report.json", json.dumps(
