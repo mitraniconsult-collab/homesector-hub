@@ -102,6 +102,10 @@ CATEGORY_MAP_BG = {
     "Furniture > Outdoor Furniture Accessories > Outdoor Furniture Covers": "градина > градински текстил > покривала за градински мебели",
     "Furniture > Benches": "мебели > столове > пейки и столчета",
     "Home & Garden > Decor > Home Fragrances > Air Fresheners": "декорация > свещници и свещи > ароматизатори за стая",
+    "Home & Garden > Linens & Bedding > Towels > Bath Towels & Washcloths": "обзавеждане за баня > текстил за баня > кърпи за баня",
+    "Home & Garden > Lighting > Lighting Fixtures > Wall Light Fixtures": "осветление > лампи за стена",
+    "Home & Garden > Linens & Bedding > Bedding > Bedding Sets": "домашен текстил > текстил за спалня > спално бельо",
+    "Furniture > Entertainment Centers & TV Stands": "мебели > маси > ТВ шкафове",
 }
 
 def handle_from_link(link):
