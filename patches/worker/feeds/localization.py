@@ -89,7 +89,8 @@ _GR_VARIANT_OPTION_LABELS = {
     "аромат": "Άρωμα", "aroma": "Άρωμα", "fragrance": "Άρωμα", "scent": "Άρωμα",
     "размер": "Μέγεθος", "размери": "Μέγεθος", "size": "Μέγεθος",
     "диаметър": "Διάμετρος", "обем": "Χωρητικότητα", "вместимост": "Χωρητικότητα",
-    "title": "Επιλογή", "тип": "Τύπος", "модел": "Μοντέλο",
+    "title": "Επιλογή", "вариант": "Παραλλαγή", "variant": "Παραλλαγή",
+    "тип": "Τύπος", "модел": "Μοντέλο",
     "ефект": "Εφέ", "стил": "Στυλ", "цвят на абажура": "Χρώμα αμπαζούρ",
     "брой": "Ποσότητα", "предназначение": "Χρήση", "финишировка": "Φινίρισμα",
     "материал": "Υλικό", "material": "Υλικό",
@@ -103,6 +104,7 @@ _GR_NUMERIC_OPTION_NAMES = {"размер", "размери", "size", "диам�
                             "вместимост", "капацитет", "capacity"}
 _GR_NUMERIC_VALUE = re.compile(r"\d+(?:[.,]\d+)?(?:\s*[xX×]\s*\d+(?:[.,]\d+)?)*\s*(?:cm|mm|m|L|l)?", re.ASCII)
 _RO_VARIANT_OPTION_LABELS = {
+    "вариант": "Variantă", "variant": "Variantă",
     "аромат": "Aromă", "fragrance": "Aromă", "scent": "Aromă",
     "размер": "Mărime", "size": "Mărime",
     "материал": "Material", "material": "Material",
@@ -112,6 +114,7 @@ _RO_VARIANT_OPTION_LABELS = {
     "капацитет": "Capacitate", "capacity": "Capacitate",
 }
 _HU_VARIANT_OPTION_LABELS = {
+    "вариант": "Változat", "variant": "Változat",
     "аромат": "Illat", "fragrance": "Illat", "scent": "Illat",
     "размер": "Méret", "size": "Méret",
     "материал": "Anyag", "material": "Anyag",
