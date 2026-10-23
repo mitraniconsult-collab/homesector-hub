@@ -17,12 +17,11 @@ from .feed_ids import is_safe_favi_id, variant_feed_id
 # FAVI allows own detailed, localized categories, but platform approval is still required.
 # Never infer from product titles, broad parent categories or collections.
 CATEGORY_MAP_BG = {
-    "Home & Garden > Decor > Seasonal & Holiday Decorations > Holiday Ornaments": "Коледа > Коледна украса > Играчки за елха",
-    "Home & Garden > Decor > Seasonal & Holiday Decorations > Seasonal Village Sets & Accessories": "Коледа > Коледна украса > Коледни селца и аксесоари",
-    "Home & Garden > Decor > Throw Pillows": "Домашен текстил > Декоративни възглавници",
-    "Home & Garden > Decor > Artificial Flora > Artificial Trees": "Декорация > Изкуствени растения > Изкуствени дървета",
-    "Home & Garden > Household Supplies > Storage & Organization > Household Storage Containers": "Организация на дома > Кутии за съхранение",
-    "Home & Garden > Kitchen & Dining > Tableware > Drinkware > Tumblers": "Кухня и трапезария > Чаши > Чаши за вода",
+    "Home & Garden > Decor > Seasonal & Holiday Decorations > Holiday Ornaments": "Коледа > коледни орнаменти > коледни играчки за елха",
+    "Home & Garden > Decor > Seasonal & Holiday Decorations > Seasonal Village Sets & Accessories": "Коледа > коледна украса > коледни фигурки",
+    "Home & Garden > Decor > Throw Pillows": "домашен текстил > текстил за спалня > възглавници и калъфки",
+    "Home & Garden > Household Supplies > Storage & Organization > Household Storage Containers": "мебели > системи за съхранение > кутии и органайзери",
+    "Home & Garden > Kitchen & Dining > Tableware > Drinkware > Tumblers": "кухня и трапезария > за трапезата > съдове за хранене > чаши > чаши за вода и безалкохолно",
     "Home & Garden > Kitchen & Dining > Tableware > Dinnerware > Plates": "кухня и трапезария > за трапезата > съдове за хранене > чинии",
     "Home & Garden > Kitchen & Dining > Tableware > Dinnerware > Bowls": "кухня и трапезария > за трапезата > съдове за хранене > купи",
     "Home & Garden > Kitchen & Dining > Food Storage > Food Storage Containers": "кухня и трапезария > съхранение на храна > контейнери за храна",
@@ -62,6 +61,19 @@ CATEGORY_MAP_BG = {
     "Home & Garden > Lighting > Lamps > Floor Lamps": "осветление > лампиони",
     "Home & Garden > Linens & Bedding > Bedding > Quilts & Comforters": "домашен текстил > текстил за спалня > завивки и възглавници",
     "Home & Garden > Lighting > Lamps > Table Lamps": "осветление > настолни лампи",
+    "Home & Garden > Bathroom Accessories > Toothbrush Holders": "обзавеждане за баня > аксесоари за баня > поставки за четки за зъби",
+    "Furniture > Tables > Kitchen & Dining Room Tables": "мебели > маси > трапезни маси",
+    "Furniture > Chairs > Table & Bar Stools > Bar Stools": "мебели > столове > бар столове",
+    "Home & Garden > Linens & Bedding > Table Linens > Placemats": "домашен текстил > кухненски текстил > подложки за хранене",
+    "Home & Garden > Kitchen & Dining > Tableware > Drinkware > Coffee & Tea Cups": "кухня и трапезария > за трапезата > съдове за хранене > чаши за кафе и чай",
+    "Home & Garden > Decor > Coat & Hat Racks": "коридор и антре > закачалки за антре",
+    "Furniture > Tables > Accent Tables > End Tables": "дневна > помощни маси",
+    "Home & Garden > Kitchen & Dining > Tableware > Serveware > Serving Bowls": "кухня и трапезария > за трапезата > съдове за хранене > купи",
+    "Home & Garden > Kitchen & Dining > Kitchen Tools & Utensils > Cutting Boards": "кухня и трапезария > готвене > дъски за рязане",
+    "Home & Garden > Linens & Bedding > Towels > Bath Towels & Washcloths > Bath Towels": "обзавеждане за баня > текстил за баня > кърпи за баня",
+    "Home & Garden > Household Supplies > Storage & Organization > Clothing & Closet Storage > Hangers": "спалня > закачалки за дрехи",
+    "Home & Garden > Linens & Bedding > Bedding > Blankets > Throw Blankets": "домашен текстил > текстил за спалня > одеяла",
+    "Furniture > Sofas": "мебели > мека мебел > дивани",
 }
 
 def handle_from_link(link):
