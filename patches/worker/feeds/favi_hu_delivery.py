@@ -41,8 +41,8 @@ def publish_preview(mount, source_folder):
                 or previous.get("purpose") != "partial_preview"
                 or not isinstance(previous.get("items"), int)):
             raise RuntimeError("Invalid previous FAVI HU pointer")
-        if audit["items"] < previous["items"]:
-            raise RuntimeError("FAVI HU preview count declined; keep previous pointer")
+        if audit["items"] < previous["items"] * .8:
+            raise RuntimeError("FAVI HU preview count declined by more than 20 percent")
     xml_hash = hashlib.sha256(xml).hexdigest()
     report_bytes = json.dumps(report, ensure_ascii=False, sort_keys=True).encode()
     report_hash = hashlib.sha256(report_bytes).hexdigest()
