@@ -14,6 +14,8 @@ export async function proxy(request: NextRequest) {
     "/feeds/favi/RO-preview-report.json",
     "/feeds/favi/HU-preview.xml",
     "/feeds/favi/HU-preview-report.json",
+    "/feeds/favi/BG-preview.xml",
+    "/feeds/favi/BG-preview-report.json",
   ];
   const feed = publicFeedPaths.includes(path) && ["GET", "HEAD"].includes(request.method);
   if (feed || workerRequest(request)) return NextResponse.next();
