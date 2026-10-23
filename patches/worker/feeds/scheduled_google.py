@@ -197,6 +197,15 @@ def run(mount, should_stop):
         except Exception as exc:
             print('[favi-preview-rebuild] FAILED type=' + type(exc).__name__ +
                   _error_detail(exc), flush=True)
+    if os.getenv('FEED_FAVI_GR_PREVIEW_PUBLISH') == 'yes' and not should_stop():
+        try:
+            from .favi_gr_delivery import repair_published_report
+            repair = repair_published_report()
+            if repair['status'] == 'report_corrected':
+                print('[favi-gr-report-repair] ' + json.dumps(repair, sort_keys=True), flush=True)
+        except Exception as exc:
+            print('[favi-gr-report-repair] FAILED type=' + type(exc).__name__ +
+                  _error_detail(exc), flush=True)
     while not should_stop():
         try:
             result = tick(mount, should_stop=should_stop)

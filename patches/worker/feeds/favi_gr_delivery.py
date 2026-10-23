@@ -16,6 +16,59 @@ PREFIX = "feeds/favi-gr/"
 MANIFEST = PREFIX + "current-preview.json"
 
 
+def repair_published_report():
+    """Correct an old GR report flag without changing its XML or source age."""
+    if os.getenv("FEED_FAVI_GR_PREVIEW_PUBLISH") != "yes":
+        return {"status": "disabled"}
+    store = BlobStore(os.getenv("FEED_BLOB_READ_WRITE_TOKEN", ""), prefix=PREFIX)
+    pointer_bytes, etag = store.read(MANIFEST)
+    if pointer_bytes is None:
+        return {"status": "no_pointer"}
+    pointer = json.loads(pointer_bytes)
+    if (not etag or pointer.get("market") != "GR"
+            or pointer.get("purpose") != "partial_preview"
+            or not isinstance(pointer.get("items"), int)):
+        raise RuntimeError("Invalid GR preview pointer")
+    report_bytes, _ = store.read(pointer["report_pathname"])
+    if (report_bytes is None or hashlib.sha256(report_bytes).hexdigest()
+            != pointer.get("report_sha256")):
+        raise RuntimeError("GR preview report checksum mismatch")
+    report = json.loads(report_bytes)
+    if report.get("published") is True:
+        return {"status": "already_correct", "items": pointer["items"]}
+    xml, _ = store.read(pointer["xml_pathname"])
+    if (xml is None or hashlib.sha256(xml).hexdigest() != pointer.get("sha256")):
+        raise RuntimeError("GR preview XML checksum mismatch")
+    audit = validate_xml(xml, "GR", max_issues=0)
+    favi_audit = audit_favi_gr(xml)
+    if (not audit["passed"] or not favi_audit["passed"]
+            or audit["items"] != pointer["items"]
+            or audit["unique_ids"] != audit["items"]
+            or report.get("xml_items") != audit["items"]):
+        raise RuntimeError("GR preview failed metadata repair audit")
+    report["published"] = True
+    report["status"] = "partial_preview_published"
+    report["favi_gr_preflight_audit"] = favi_audit
+    corrected = json.dumps(report, ensure_ascii=False, sort_keys=True).encode()
+    digest = hashlib.sha256(corrected).hexdigest()
+    pathname = PREFIX + "snapshots/" + digest + ".json"
+    existing, _ = store.read(pathname)
+    if existing is None:
+        store.put(pathname, corrected, "application/json; charset=utf-8")
+        existing, _ = store.read(pathname)
+    if existing != corrected:
+        raise RuntimeError("GR corrected report verification failed")
+    pointer["report_sha256"] = digest
+    pointer["report_pathname"] = pathname
+    updated = json.dumps(pointer, ensure_ascii=False).encode()
+    store.put(MANIFEST, updated, "application/json", overwrite=True, etag=etag)
+    checked, _ = store.read(MANIFEST)
+    if checked != updated:
+        raise RuntimeError("GR corrected pointer verification failed")
+    return {"status": "report_corrected", "items": audit["items"],
+            "sha256": pointer["sha256"]}
+
+
 def publish_preview(mount, source_folder=None):
     root = Path(mount)
     if os.getenv("FEED_FAVI_GR_PREVIEW_PUBLISH") != "yes":
