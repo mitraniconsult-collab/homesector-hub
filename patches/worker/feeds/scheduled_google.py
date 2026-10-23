@@ -161,6 +161,33 @@ def _market_deadline(mount, now, sharing):
 
 
 def run(mount, should_stop):
+    # Category-only revisions can be reviewed against the last complete BG
+    # source without waiting for a fresh Shopify catalog cycle. This writes
+    # private previews only; the public Google pointer is untouched.
+    if os.getenv('FEED_FAVI_BG_PREVIEW') == 'yes' and not should_stop():
+        try:
+            root = Path(mount)
+            state_path = root / 'google-bg-schedule.json'
+            state = json.loads(state_path.read_text()) if state_path.exists() else {}
+            generation = str(state.get('last_generation') or '')
+            if len(generation) == 32 and all(c in '0123456789abcdef' for c in generation):
+                folder = root / 'google-bg-runs' / generation / 'google-bg'
+                if (folder / 'manifest.json').is_file():
+                    from .favi_bg_preview import create_preview
+                    report = create_preview(root, source_folder=folder)
+                    print('[favi-preview-rebuild] ' + json.dumps({
+                        'source_generation': generation,
+                        'xml_items': report['xml_items'],
+                        'id_migration_candidate_items': report['id_migration_candidate_items'],
+                        'skipped_no_checked_mapping': report['skipped_no_checked_mapping'],
+                        'blocked_legacy_id_migration': report['blocked_legacy_id_migration'],
+                        'serializer_rejections': report['serializer_rejections'],
+                        'id_migration_candidate_rejections': report['id_migration_candidate_rejections'],
+                        'categories_mapped': report['categories_mapped'],
+                    }, sort_keys=True), flush=True)
+        except Exception as exc:
+            print('[favi-preview-rebuild] FAILED type=' + type(exc).__name__ +
+                  _error_detail(exc), flush=True)
     while not should_stop():
         try:
             result = tick(mount, should_stop=should_stop)
