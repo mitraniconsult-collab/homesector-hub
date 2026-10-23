@@ -95,6 +95,8 @@ CATEGORY_MAP_BG = {
     "Home & Garden > Household Supplies > Laundry Supplies > Drying Racks & Hangers > Drying Racks": "обзавеждане за баня > аксесоари за баня > сушилници за дрехи",
     "Home & Garden > Bathroom Accessories > Toilet Brushes & Holders > Toilet Brushes": "обзавеждане за баня > аксесоари за тоалетна > четки за тоалетна",
     "Home & Garden > Lawn & Garden > Outdoor Living > Outdoor Structures > Garden Arches, Trellises, Arbors & Pergolas > Pergolas": "градина > градински постройки > перголи",
+    "Home & Garden > Lighting > Lighting Fixtures > Pendant Light Fixtures": "осветление > лампи за таван",
+    "Home & Garden > Kitchen & Dining > Outdoor Kitchens": "градина > барбекюта > външни кухни",
 }
 
 def handle_from_link(link):
