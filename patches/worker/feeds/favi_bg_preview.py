@@ -74,6 +74,14 @@ CATEGORY_MAP_BG = {
     "Home & Garden > Household Supplies > Storage & Organization > Clothing & Closet Storage > Hangers": "спалня > закачалки за дрехи",
     "Home & Garden > Linens & Bedding > Bedding > Blankets > Throw Blankets": "домашен текстил > текстил за спалня > одеяла",
     "Furniture > Sofas": "мебели > мека мебел > дивани",
+    "Furniture > Tables > Nightstands": "мебели > маси > нощни шкафчета",
+    "Home & Garden > Kitchen & Dining > Tableware > Serveware > Serving Platters": "кухня и трапезария > за трапезата > табли за сервиране",
+    "Home & Garden > Kitchen & Dining > Kitchen Tools & Utensils > Kitchen Utensil Sets": "кухня и трапезария > кухненски пособия > кухненски прибори",
+    "Furniture > Tables > Accent Tables > Console Tables": "коридор и антре > конзолни маси",
+    "Furniture > Outdoor Furniture > Outdoor Tables > Side Tables": "градина > балкон и тераса > мебели за тераса > маси за тераса",
+    "Home & Garden > Kitchen & Dining > Cookware & Bakeware > Cookware > Stock Pots": "кухня и трапезария > готвене > тенджери",
+    "Home & Garden > Bathroom Accessories > Soap Dishes & Holders": "обзавеждане за баня > аксесоари за баня > сапунерки",
+    "Furniture > Outdoor Furniture > Outdoor Furniture Sets": "градина > градински комплекти",
 }
 
 def handle_from_link(link):
