@@ -114,10 +114,12 @@ def tick(mount, should_stop=lambda: False, now=None):
         # FAVI stays private until its ID and category gates pass. A preview
         # failure cannot stall an otherwise successful Google publication.
         if os.getenv('FEED_FAVI_BG_PREVIEW') == 'yes':
+            favi_phase = 'build'
             try:
                 from .favi_bg_preview import create_preview
                 favi = create_preview(root, source_folder=folder)
                 if os.getenv('FEED_FAVI_BG_PREVIEW_PUBLISH') == 'yes':
+                    favi_phase = 'publish'
                     from .favi_bg_delivery import publish_preview
                     print('[favi-bg-publication] ' + json.dumps(publish_preview(root, root), sort_keys=True), flush=True)
                 print('[favi-preview] ' + json.dumps({
@@ -132,7 +134,8 @@ def tick(mount, should_stop=lambda: False, now=None):
                     'top_unmapped_shopify_taxonomy': favi['top_unmapped_shopify_taxonomy'],
                 }, sort_keys=True), flush=True)
             except Exception as exc:
-                print('[favi-preview] FAILED type=' + type(exc).__name__, flush=True)
+                print('[favi-preview] FAILED phase=' + favi_phase +
+                      ' type=' + type(exc).__name__, flush=True)
         completed = time.time() if real_clock else now
         state.update(generation=None, last_generation=generation, last_success_at=completed,
                      next_run_at=completed + interval, last_items=receipt['items'],
@@ -168,6 +171,7 @@ def run(mount, should_stop):
     # source without waiting for a fresh Shopify catalog cycle. This writes
     # private previews only; the public Google pointer is untouched.
     if os.getenv('FEED_FAVI_BG_PREVIEW') == 'yes' and not should_stop():
+        favi_phase = 'build'
         try:
             root = Path(mount)
             state_path = root / 'google-bg-schedule.json'
@@ -179,6 +183,7 @@ def run(mount, should_stop):
                     from .favi_bg_preview import create_preview
                     report = create_preview(root, source_folder=folder)
                     if os.getenv('FEED_FAVI_BG_PREVIEW_PUBLISH') == 'yes':
+                        favi_phase = 'publish'
                         from .favi_bg_delivery import publish_preview
                         print('[favi-bg-publication] ' + json.dumps(publish_preview(root, root), sort_keys=True), flush=True)
                     print('[favi-preview-rebuild] ' + json.dumps({
@@ -195,7 +200,8 @@ def run(mount, should_stop):
                         'top_unmapped_shopify_taxonomy': report['top_unmapped_shopify_taxonomy'],
                     }, sort_keys=True), flush=True)
         except Exception as exc:
-            print('[favi-preview-rebuild] FAILED type=' + type(exc).__name__ +
+            print('[favi-preview-rebuild] FAILED phase=' + favi_phase +
+                  ' type=' + type(exc).__name__ +
                   _error_detail(exc), flush=True)
     if os.getenv('FEED_FAVI_GR_PREVIEW_PUBLISH') == 'yes' and not should_stop():
         try:

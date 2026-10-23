@@ -26,7 +26,8 @@ def publish_preview(mount, source_folder):
     report = json.loads((folder / "favi-bg-preview-report.json").read_text(encoding="utf-8"))
     audit = validate_xml(xml, "BG", max_issues=0)
     favi_audit = audit_favi_gr(xml)
-    if (not report.get("id_migration_candidate_items") or not audit["passed"]
+    if (report.get("source_complete") is not True
+            or not report.get("id_migration_candidate_items") or not audit["passed"]
             or audit["items"] != report.get("id_migration_candidate_items")
             or hashlib.sha256(xml).hexdigest() != report.get("id_migration_candidate_sha256")
             or audit["unique_ids"] != audit["items"] or not favi_audit["passed"]):
@@ -54,8 +55,11 @@ def publish_preview(mount, source_folder):
                 or previous.get("purpose") != "partial_preview"
                 or not isinstance(previous.get("items"), int)):
             raise RuntimeError("Invalid previous FAVI BG pointer")
-        if audit["items"] < previous["items"]:
-            raise RuntimeError("FAVI BG preview count declined; keep previous pointer")
+        # A complete daily catalog may shrink when products are removed or
+        # unpublished. Guard against a large loss, rather than freezing the
+        # public preview on every normal decline.
+        if audit["items"] < previous["items"] * .8:
+            raise RuntimeError("FAVI BG preview count declined by more than 20 percent")
     xml_hash = hashlib.sha256(xml).hexdigest()
     report_bytes = json.dumps(report, ensure_ascii=False, sort_keys=True).encode()
     report_hash = hashlib.sha256(report_bytes).hexdigest()

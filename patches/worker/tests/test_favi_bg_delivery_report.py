@@ -34,6 +34,7 @@ class BgDeliveryReportTest(unittest.TestCase):
             original = b"private XML"
             (root / "favi-bg-id-migration-candidate.xml").write_bytes(candidate)
             (root / "favi-bg-preview-report.json").write_text(json.dumps({
+                "source_complete": True,
                 "xml_items": 1,
                 "sha256": hashlib.sha256(original).hexdigest(),
                 "id_migration_candidate_items": 2,
@@ -57,6 +58,38 @@ class BgDeliveryReportTest(unittest.TestCase):
         self.assertEqual(report["private_preview_xml_items"], 1)
         self.assertEqual(report["private_preview_sha256"], hashlib.sha256(original).hexdigest())
         self.assertTrue(report["id_migration_review_required"])
+
+    def test_complete_small_decline_is_allowed_but_large_decline_is_blocked(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            candidate = b"candidate XML"
+            (root / "favi-bg-id-migration-candidate.xml").write_bytes(candidate)
+            (root / "favi-bg-preview-report.json").write_text(json.dumps({
+                "source_complete": True, "xml_items": 10,
+                "sha256": "private", "id_migration_candidate_items": 95,
+                "id_migration_candidate_sha256": hashlib.sha256(candidate).hexdigest(),
+            }))
+            MemoryBlobStore.data = {delivery.MANIFEST: json.dumps({
+                "market": "BG", "purpose": "partial_preview", "items": 100,
+            }).encode()}
+            with (patch.dict(delivery.os.environ, {
+                    "FEED_FAVI_BG_PREVIEW_PUBLISH": "yes",
+                    "FEED_DURABLE_STORAGE_CONFIRMED": "yes"}),
+                    patch.object(delivery.os.path, "ismount", return_value=True),
+                    patch.object(delivery, "validate_xml", return_value={
+                        "passed": True, "items": 95, "unique_ids": 95}),
+                    patch.object(delivery, "audit_favi_gr", return_value={"passed": True}),
+                    patch.object(delivery, "BlobStore", MemoryBlobStore)):
+                self.assertEqual(delivery.publish_preview(root, root)["items"], 95)
+                with patch.object(delivery, "validate_xml", return_value={
+                        "passed": True, "items": 75, "unique_ids": 75}):
+                    (root / "favi-bg-preview-report.json").write_text(json.dumps({
+                        "source_complete": True, "xml_items": 10,
+                        "sha256": "private", "id_migration_candidate_items": 75,
+                        "id_migration_candidate_sha256": hashlib.sha256(candidate).hexdigest(),
+                    }))
+                    with self.assertRaisesRegex(RuntimeError, "more than 20 percent"):
+                        delivery.publish_preview(root, root)
 
 
 if __name__ == "__main__":
