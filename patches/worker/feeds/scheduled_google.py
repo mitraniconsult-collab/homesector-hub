@@ -43,6 +43,36 @@ def reclaim_completed_runs(root, active, previous):
     return removed
 
 
+def reclaim_completed_market_runs(root):
+    """Discard old complete market journals, preserving active and last runs."""
+    removed = []
+    for market in ('gr', 'ro', 'hu'):
+        state_path = root / f'favi-{market}-schedule.json'
+        runs = root / f'favi-{market}-runs'
+        if not state_path.is_file() or not runs.is_dir():
+            continue
+        try:
+            state = json.loads(state_path.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            continue
+        protected = {state.get('generation'), state.get('last_generation')}
+        for folder in runs.iterdir():
+            if (folder.name in protected or not folder.is_dir() or folder.is_symlink()
+                    or len(folder.name) != 32
+                    or any(c not in '0123456789abcdef' for c in folder.name)):
+                continue
+            manifest = folder / f'favi-{market}-source' / 'manifest.json'
+            if not manifest.is_file():
+                continue
+            try:
+                complete = json.loads(manifest.read_text(encoding='utf-8')).get('finished') is True
+            except (OSError, ValueError):
+                continue
+            if complete:
+                shutil.rmtree(folder)
+                removed.append(market)
+    return removed
+
 def _error_detail(exc):
     return ' errno=' + str(exc.errno) if isinstance(exc, OSError) else ''
 
@@ -167,6 +197,10 @@ def _market_deadline(mount, now, sharing):
 
 
 def run(mount, should_stop):
+    removed = reclaim_completed_market_runs(Path(mount))
+    if removed:
+        print('[feed-storage] removed_completed_market_runs=' +
+              json.dumps({m: removed.count(m) for m in sorted(set(removed))}), flush=True)
     # Category-only revisions can be reviewed against the last complete BG
     # source without waiting for a fresh Shopify catalog cycle. This writes
     # private previews only; the public Google pointer is untouched.
