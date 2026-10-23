@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 from collections import Counter
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
 from xml.etree import ElementTree as ET
@@ -182,7 +183,9 @@ def create_preview(mount, source_folder=None):
         os.fsync(file.fileno())
     os.replace(migration_temp, migration_path)
     report = {
-        "status": "unpublished_preview", "original_catalog_items": m["items"],
+        "status": "unpublished_preview", "market": "BG",
+        "source_complete": True, "generated_at": datetime.now(timezone.utc).isoformat(),
+        "original_catalog_items": m["items"],
         "xml_items": count, "candidate_category_rows": len(prepared),
         "categories_mapped": len(per_path),
         "reused_historical_ids": old_ids,
