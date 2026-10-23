@@ -117,6 +117,9 @@ def tick(mount, should_stop=lambda: False, now=None):
             try:
                 from .favi_bg_preview import create_preview
                 favi = create_preview(root, source_folder=folder)
+                if os.getenv('FEED_FAVI_BG_PREVIEW_PUBLISH') == 'yes':
+                    from .favi_bg_delivery import publish_preview
+                    print('[favi-bg-publication] ' + json.dumps(publish_preview(root, root), sort_keys=True), flush=True)
                 print('[favi-preview] ' + json.dumps({
                     'generation': generation, 'xml_items': favi['xml_items'],
                     'blocked_missing_parent_group': favi['blocked_missing_parent_group'],
@@ -175,6 +178,9 @@ def run(mount, should_stop):
                 if (folder / 'manifest.json').is_file():
                     from .favi_bg_preview import create_preview
                     report = create_preview(root, source_folder=folder)
+                    if os.getenv('FEED_FAVI_BG_PREVIEW_PUBLISH') == 'yes':
+                        from .favi_bg_delivery import publish_preview
+                        print('[favi-bg-publication] ' + json.dumps(publish_preview(root, root), sort_keys=True), flush=True)
                     print('[favi-preview-rebuild] ' + json.dumps({
                         'source_generation': generation,
                         'xml_items': report['xml_items'],
