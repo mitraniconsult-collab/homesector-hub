@@ -197,10 +197,6 @@ def _market_deadline(mount, now, sharing):
 
 
 def run(mount, should_stop):
-    removed = reclaim_completed_market_runs(Path(mount))
-    if removed:
-        print('[feed-storage] removed_completed_market_runs=' +
-              json.dumps({m: removed.count(m) for m in sorted(set(removed))}), flush=True)
     # Category-only revisions can be reviewed against the last complete BG
     # source without waiting for a fresh Shopify catalog cycle. This writes
     # private previews only; the public Google pointer is untouched.
@@ -248,6 +244,10 @@ def run(mount, should_stop):
                   _error_detail(exc), flush=True)
     while not should_stop():
         try:
+            removed = reclaim_completed_market_runs(Path(mount))
+            if removed:
+                print('[feed-storage] removed_completed_market_runs=' +
+                      json.dumps({m: removed.count(m) for m in sorted(set(removed))}), flush=True)
             result = tick(mount, should_stop=should_stop)
             print('[feed-schedule] ' + json.dumps(result, sort_keys=True), flush=True)
             if result['status'] == 'incomplete':
