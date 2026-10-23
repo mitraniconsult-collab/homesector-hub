@@ -40,6 +40,28 @@ CATEGORY_MAP_BG = {
     "Home & Garden > Decor > Mirrors": "декорация > огледала",
     "Home & Garden > Decor > Home Fragrances > Reed Diffusers": "декорация > свещници и свещи > ароматизатори за стая",
     "Home & Garden > Decor > Artwork > Posters, Prints, & Visual Artwork > Visual Artwork": "декорация > картини",
+    # Exact Shopify taxonomy leaves measured in the 2026-10-23 BG run;
+    # destination paths checked against FAVI.bg's current category list.
+    "Home & Garden > Linens & Bedding > Bedding > Bed Sheets": "домашен текстил > текстил за спалня > чаршафи",
+    "Furniture > Chairs > Kitchen & Dining Room Chairs": "мебели > столове > трапезни столове",
+    "Home & Garden > Household Supplies > Laundry Supplies > Laundry Baskets": "обзавеждане за баня > аксесоари за баня > кошове за пране",
+    "Furniture > Tables > Accent Tables > Coffee Tables": "дневна > маси за кафе",
+    "Furniture > Cabinets & Storage > Dressers": "мебели > шкафове и гардероби > скринове",
+    "Home & Garden > Linens & Bedding > Bedding > Blankets": "домашен текстил > текстил за спалня > одеяла",
+    "Home & Garden > Lawn & Garden > Outdoor Living > Outdoor Umbrellas & Sunshades > Outdoor Umbrellas": "градина > чадъри и сенници > градински чадъри",
+    "Home & Garden > Bathroom Accessories > Bath Mats & Rugs": "обзавеждане за баня > текстил за баня > постелки за баня",
+    "Home & Garden > Bathroom Accessories > Soap & Lotion Dispensers": "обзавеждане за баня > аксесоари за баня > дозатори за течен сапун",
+    "Furniture > Shelving > Bookcases & Standing Shelves > Modular Bookcases & Shelves": "мебели > системи за съхранение > етажерки за книги",
+    "Home & Garden > Decor > Clocks > Wall Clocks": "декорация > часовници",
+    "Furniture > Outdoor Furniture > Outdoor Seating > Sunloungers": "градина > шезлонги",
+    "Furniture > Outdoor Furniture > Outdoor Seating > Outdoor Chairs > Folding Chairs": "градина > градински столове",
+    "Furniture > Chairs > Armchairs, Recliners & Sleeper Chairs > Armchairs": "мебели > мека мебел > фотьойли",
+    "Home & Garden > Linens & Bedding > Table Linens > Tablecloths": "домашен текстил > кухненски текстил > покривки",
+    "Furniture > Cabinets & Storage > Vanities > Bathroom Vanities > Bathroom Cabinets": "обзавеждане за баня > мебели за баня > шкафове за баня",
+    "Home & Garden > Kitchen & Dining > Cookware & Bakeware > Cookware > Skillets & Frying Pans > Frying Pans": "кухня и трапезария > готвене > тигани",
+    "Home & Garden > Lighting > Lamps > Floor Lamps": "осветление > лампиони",
+    "Home & Garden > Linens & Bedding > Bedding > Quilts & Comforters": "домашен текстил > текстил за спалня > завивки и възглавници",
+    "Home & Garden > Lighting > Lamps > Table Lamps": "осветление > настолни лампи",
 }
 
 def handle_from_link(link):
