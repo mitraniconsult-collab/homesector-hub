@@ -184,6 +184,7 @@ def run(mount, should_stop):
                         'serializer_rejections': report['serializer_rejections'],
                         'id_migration_candidate_rejections': report['id_migration_candidate_rejections'],
                         'categories_mapped': report['categories_mapped'],
+                        'top_unmapped_shopify_taxonomy': report['top_unmapped_shopify_taxonomy'],
                     }, sort_keys=True), flush=True)
         except Exception as exc:
             print('[favi-preview-rebuild] FAILED type=' + type(exc).__name__ +
