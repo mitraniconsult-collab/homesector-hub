@@ -85,6 +85,9 @@ CATEGORY_MAP_BG = {
     "Home & Garden > Kitchen & Dining > Cookware & Bakeware > Cookware > Stock Pots": "кухня и трапезария > готвене > тенджери",
     "Home & Garden > Bathroom Accessories > Soap Dishes & Holders": "обзавеждане за баня > аксесоари за баня > сапунерки",
     "Furniture > Outdoor Furniture > Outdoor Furniture Sets": "градина > градински комплекти",
+    "Furniture > Ottomans": "мебели > мека мебел > табуретки",
+    "Home & Garden > Decor > Chair & Sofa Cushion Covers": "домашен текстил > възглавници и калъфки",
+    "Home & Garden > Decor > Chair & Sofa Cushions": "домашен текстил > възглавници и калъфки",
 }
 
 def handle_from_link(link):
@@ -182,12 +185,14 @@ def create_preview(mount, source_folder=None):
         file.flush()
         os.fsync(file.fileno())
     os.replace(migration_temp, migration_path)
+    candidate_paths = Counter(row["product_type"] for row in prepared + migration_rows)
     report = {
         "status": "unpublished_preview", "market": "BG",
         "source_complete": True, "generated_at": datetime.now(timezone.utc).isoformat(),
         "original_catalog_items": m["items"],
         "xml_items": count, "candidate_category_rows": len(prepared),
-        "categories_mapped": len(per_path),
+        "categories_mapped": len(candidate_paths),
+        "categories_mapped_strict": len(per_path),
         "reused_historical_ids": old_ids,
         "new_stable_ids": new_ids,
         "skipped_no_checked_mapping": causes["no_checked_category_mapping"],
@@ -196,7 +201,7 @@ def create_preview(mount, source_folder=None):
         "serializer_rejections": xml_report["excluded_reasons"],
         "category_paths_await_favi_approval": True,
         "historical_ids_not_verified_in_favi_panel": True,
-        "top_mapped_paths": per_path.most_common(15),
+        "top_mapped_paths": candidate_paths.most_common(15),
         "top_unmapped_shopify_taxonomy": unmapped_taxonomy.most_common(30),
         "legacy_id_patterns_held": dict(legacy_id_patterns),
         "id_migration_candidate_items": migration_report["items_exported"],
