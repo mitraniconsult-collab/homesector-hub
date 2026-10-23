@@ -88,6 +88,13 @@ CATEGORY_MAP_BG = {
     "Furniture > Ottomans": "мебели > мека мебел > табуретки",
     "Home & Garden > Decor > Chair & Sofa Cushion Covers": "домашен текстил > възглавници и калъфки",
     "Home & Garden > Decor > Chair & Sofa Cushions": "домашен текстил > възглавници и калъфки",
+    # Exact Shopify taxonomy leaves checked against FAVI.bg on 2026-10-23.
+    "Furniture > Shelving > Bookcases & Standing Shelves": "мебели > системи за съхранение > етажерки за книги",
+    "Furniture > Shelving > Wall Shelves & Ledges > Floating Wall Shelves & Ledges": "мебели > системи за съхранение > рафтове за стена",
+    "Home & Garden > Kitchen & Dining > Kitchen Tools & Utensils > Kitchen Knives": "кухня и трапезария > готвене > кухненски ножове",
+    "Home & Garden > Household Supplies > Laundry Supplies > Drying Racks & Hangers > Drying Racks": "обзавеждане за баня > аксесоари за баня > сушилници за дрехи",
+    "Home & Garden > Bathroom Accessories > Toilet Brushes & Holders > Toilet Brushes": "обзавеждане за баня > аксесоари за тоалетна > четки за тоалетна",
+    "Home & Garden > Lawn & Garden > Outdoor Living > Outdoor Structures > Garden Arches, Trellises, Arbors & Pergolas > Pergolas": "градина > градински постройки > перголи",
 }
 
 def handle_from_link(link):
