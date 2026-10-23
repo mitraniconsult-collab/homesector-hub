@@ -11,7 +11,9 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from xml.etree import ElementTree as ET
 from .favi_xml import generate_favi
+from .favi_gr_audit import audit_favi_gr
 from .feed_ids import is_safe_favi_id, variant_feed_id
+from .xml_audit import validate_xml
 
 # Exact Shopify taxonomy -> detailed Bulgarian category PROPOSALS.
 # FAVI allows own detailed, localized categories, but platform approval is still required.
@@ -166,6 +168,12 @@ def create_preview(mount, source_folder=None):
     # A separate private candidate quantifies the proposed ID migration. It
     # cannot replace the legacy feed without an explicit destination decision.
     migration_xml, migration_report = generate_favi(prepared + migration_rows, "BG")
+    migration_xml_audit = validate_xml(migration_xml, "BG", max_issues=0)
+    migration_favi_audit = audit_favi_gr(migration_xml)
+    if (not migration_xml_audit["passed"] or not migration_favi_audit["passed"]
+            or migration_xml_audit["items"] != migration_report["items_exported"]
+            or migration_xml_audit["unique_ids"] != migration_xml_audit["items"]):
+        raise RuntimeError("FAVI BG migration candidate failed private XML audit")
     migration_path = root / "favi-bg-id-migration-candidate.xml"
     migration_temp = root / "favi-bg-id-migration-candidate.xml.tmp"
     with migration_temp.open("wb") as file:
@@ -191,6 +199,8 @@ def create_preview(mount, source_folder=None):
         "id_migration_candidate_items": migration_report["items_exported"],
         "id_migration_candidate_rejections": migration_report["excluded_reasons"],
         "id_migration_candidate_sha256": hashlib.sha256(migration_xml).hexdigest(),
+        "id_migration_candidate_xml_audit": migration_xml_audit,
+        "id_migration_candidate_favi_audit": migration_favi_audit,
         "sha256": hashlib.sha256(xml).hexdigest(),
         "approved_by_favi": False, "published": False,
     }

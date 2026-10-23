@@ -184,6 +184,8 @@ def run(mount, should_stop):
                         'serializer_rejections': report['serializer_rejections'],
                         'id_migration_candidate_rejections': report['id_migration_candidate_rejections'],
                         'categories_mapped': report['categories_mapped'],
+                        'id_migration_xml_audit': report['id_migration_candidate_xml_audit'],
+                        'id_migration_favi_audit': report['id_migration_candidate_favi_audit'],
                         'top_unmapped_shopify_taxonomy': report['top_unmapped_shopify_taxonomy'],
                     }, sort_keys=True), flush=True)
         except Exception as exc:
