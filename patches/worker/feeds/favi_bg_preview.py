@@ -97,6 +97,11 @@ CATEGORY_MAP_BG = {
     "Home & Garden > Lawn & Garden > Outdoor Living > Outdoor Structures > Garden Arches, Trellises, Arbors & Pergolas > Pergolas": "градина > градински постройки > перголи",
     "Home & Garden > Lighting > Lighting Fixtures > Pendant Light Fixtures": "осветление > лампи за таван",
     "Home & Garden > Kitchen & Dining > Outdoor Kitchens": "градина > барбекюта > външни кухни",
+    "Home & Garden > Kitchen & Dining > Kitchen Tools & Utensils > Dish Racks & Drain Boards > Dish Racks": "кухня и трапезария > подреждане и почистване на кухнята > сушилници за съдове",
+    "Home & Garden > Decor > Home Fragrance Accessories > Candle Holders": "декорация > свещници и свещи > свещници",
+    "Furniture > Outdoor Furniture Accessories > Outdoor Furniture Covers": "градина > градински текстил > покривала за градински мебели",
+    "Furniture > Benches": "мебели > столове > пейки и столчета",
+    "Home & Garden > Decor > Home Fragrances > Air Fresheners": "декорация > свещници и свещи > ароматизатори за стая",
 }
 
 def handle_from_link(link):
