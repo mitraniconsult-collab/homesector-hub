@@ -31,6 +31,14 @@ def publish_preview(mount, source_folder):
             or hashlib.sha256(xml).hexdigest() != report.get("id_migration_candidate_sha256")
             or audit["unique_ids"] != audit["items"] or not favi_audit["passed"]):
         raise RuntimeError("Incomplete or invalid FAVI BG preview")
+    # The builder also writes a smaller private preview without migrated IDs.
+    # The public report must describe the XML selected by this pointer.
+    report["private_preview_xml_items"] = report["xml_items"]
+    report["private_preview_sha256"] = report["sha256"]
+    report["xml_items"] = audit["items"]
+    report["sha256"] = hashlib.sha256(xml).hexdigest()
+    report["published_source"] = "id_migration_candidate"
+    report["id_migration_review_required"] = bool(report.get("blocked_legacy_id_migration"))
     report["favi_bg_preflight_audit"] = favi_audit
     report["id_migration_notice"] = (
         "Existing legacy IDs with forbidden characters are replaced by stable FAVI-safe IDs; "
