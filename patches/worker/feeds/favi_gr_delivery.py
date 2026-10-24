@@ -100,7 +100,9 @@ def publish_preview(mount, source_folder=None):
                 or previous.get("market") != "GR"
                 or not isinstance(previous.get("items"), int)):
             raise RuntimeError("Invalid previous FAVI GR preview pointer")
-        if audit["items"] < previous["items"]:
+        # A complete, audited catalog may lose a few discontinued products.
+        # Keep the previous pointer only for a material decline.
+        if audit["items"] < previous["items"] * 0.95:
             raise RuntimeError("FAVI GR preview count declined; keep previous pointer")
     xml_digest = hashlib.sha256(xml).hexdigest()
     report_bytes = json.dumps(report, ensure_ascii=False, sort_keys=True).encode()
