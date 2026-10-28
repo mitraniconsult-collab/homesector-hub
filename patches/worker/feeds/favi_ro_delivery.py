@@ -41,7 +41,9 @@ def publish_preview(mount, source_folder):
                 or previous.get("purpose") != "partial_preview"
                 or not isinstance(previous.get("items"), int)):
             raise RuntimeError("Invalid previous FAVI RO pointer")
-        if audit["items"] < previous["items"]:
+        # An audited complete catalog can lose a few discontinued products.
+        # Keep the previous pointer only for a material decline.
+        if audit["items"] < previous["items"] * 0.95:
             raise RuntimeError("FAVI RO preview count declined; keep previous pointer")
     xml_hash = hashlib.sha256(xml).hexdigest()
     report_bytes = json.dumps(report, ensure_ascii=False, sort_keys=True).encode()
