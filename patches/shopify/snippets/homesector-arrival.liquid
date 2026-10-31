@@ -1,0 +1,77 @@
+{% doc %}
+  Shows the selected variant's expected availability below its preorder button.
+  @param {product} product - The current product.
+{% enddoc %}
+{% assign arrival_today = 'now' | date: '%Y%m%d' | plus: 0 %}
+<p id="hs-arrival-note-{{ product.id }}" hidden role="status" aria-live="polite" style="margin: 0.75rem 0; width: 100%;"></p>
+<script type="application/json" id="hs-arrival-data-{{ product.id }}">
+{
+  "preorder": {{ 'homesector.arrival.preorder' | t | json }},
+  "expected": {{ 'homesector.arrival.expected' | t | json }},
+  "variants": {
+    {% for arrival_variant in product.variants %}
+      {% assign arrival_value = arrival_variant.metafields.custom.expected_arrival.value %}
+      {% if arrival_value == blank and product.variants.size == 1 %}
+        {% assign arrival_value = product.metafields.custom.expected_arrival.value %}
+      {% endif %}
+      {% assign arrival_day = arrival_value | date: '%Y%m%d' | plus: 0 %}
+      {% assign arrival_date = '' %}
+      {% if arrival_value != blank and arrival_day >= arrival_today %}
+        {% assign arrival_date = arrival_value | date: '%d.%m.%Y' %}
+      {% endif %}
+      {% assign arrival_preorder = false %}
+      {% if arrival_variant.inventory_management != blank and arrival_variant.inventory_quantity <= 0 and arrival_variant.inventory_policy == 'continue' and arrival_variant.available %}
+        {% assign arrival_preorder = true %}
+      {% endif %}
+      "{{ arrival_variant.id }}": {"preorder": {{ arrival_preorder | json }}, "date": {{ arrival_date | json }}}{% unless forloop.last %},{% endunless %}
+    {% endfor %}
+  }
+}
+</script>
+<script>
+(() => {
+  const productId = {{ product.id | json }};
+  const config = JSON.parse(document.getElementById(`hs-arrival-data-${productId}`).textContent);
+  const note = document.getElementById(`hs-arrival-note-${productId}`);
+  const originals = new WeakMap();
+  let scheduled = false;
+  function apply() {
+    scheduled = false;
+    let active = null;
+    let anchor = null;
+    document.querySelectorAll('form[action*="/cart/add"]').forEach(form => {
+      const selected = form.querySelector('[name="id"]');
+      const state = selected && config.variants[String(selected.value)];
+      if (!state) return;
+      form.querySelectorAll('button[name="add"]').forEach(button => {
+        const text = button.querySelector('.btn__text, .btn-text') || button;
+        if (!originals.has(button)) originals.set(button, button.getAttribute('data-add-to-cart-text') || text.textContent.trim());
+        const enabledPreorder = state.preorder && !button.disabled;
+        const wanted = enabledPreorder ? config.preorder : originals.get(button);
+        if (!button.disabled && text.textContent.trim() !== wanted) text.textContent = wanted;
+        if (button.getAttribute('data-add-to-cart-text') !== wanted) button.setAttribute('data-add-to-cart-text', wanted);
+        if (!anchor && !form.closest('sticky-atc-panel')) {
+          active = enabledPreorder ? state : null;
+          anchor = button.closest('.product-info__add-button')?.parentElement || button;
+        }
+      });
+    });
+    const message = active?.date ? `${config.expected} ${active.date}` : '';
+    if (note.textContent !== message) note.textContent = message;
+    note.hidden = !message;
+    if (anchor && anchor.nextElementSibling !== note) anchor.after(note);
+  }
+  function schedule() {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(apply);
+  }
+  function start() {
+    apply();
+    new MutationObserver(schedule).observe(document.body, {subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['disabled', 'value']});
+    document.addEventListener('change', schedule);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once: true});
+  else start();
+})();
+</script>
