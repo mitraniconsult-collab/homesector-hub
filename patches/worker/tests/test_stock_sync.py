@@ -221,6 +221,26 @@ class BusinessRules(unittest.TestCase):
         self.assertEqual(sh.calls, [])
         self.assertEqual(v['quantity'], 7)
 
+    def test_real_run_never_changes_any_product_template(self):
+        for suffix in ('', 'preorder', '5-week', 'custom'):
+            for supplier_record in ({'idTypeDispo': 1},
+                                    {'idTypeDispo': 2, 'dateDispo': '2099-12-16'},
+                                    {'availabilityLabel': 'Product stopped'}):
+                with self.subTest(template=suffix, supplier=supplier_record):
+                    v = variant(quantity=0, policy='CONTINUE', arrival='2099-12-16')
+                    v['template_suffix'] = suffix
+                    sh = FakeShopify([v])
+                    supplier = Mock()
+                    supplier.fetch_all_products.return_value = {'A': supplier_record}
+                    with tempfile.TemporaryDirectory() as tmp, patch.object(sync, 'DRY_RUN', False), \
+                         patch.object(sync, 'REPORT_FILE', str(Path(tmp) / 'report.csv')), \
+                         patch.object(sync.runtime, 'require_env'), \
+                         patch.object(sync, 'EasyRea', return_value=supplier), \
+                         patch.object(sync, 'Shopify', return_value=sh):
+                        sync.main()
+                    self.assertEqual(v['template_suffix'], suffix)
+                    self.assertFalse(any(call[0] == 'template' for call in sh.calls))
+
     def test_real_run_preserves_local_qty_and_clears_product_and_variant_dates(self):
         v = variant(quantity=7, policy='CONTINUE', arrival='2099-12-16')
         sh = FakeShopify([v])
@@ -235,7 +255,8 @@ class BusinessRules(unittest.TestCase):
         self.assertEqual(v['inventory_policy'], 'DENY')
         self.assertIsNone(v['variant_date'])
         self.assertIsNone(v['product_date'])
-        self.assertEqual(v['template_suffix'], '')
+        self.assertEqual(v['template_suffix'], 'preorder')
+        self.assertFalse(any(call[0] == 'template' for call in sh.calls))
 
 
 if __name__ == '__main__':

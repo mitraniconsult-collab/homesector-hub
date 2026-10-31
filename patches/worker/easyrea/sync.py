@@ -339,13 +339,6 @@ class Shopify:
         }"""
         self.mutation(q, {"product": product_id, "variants": [{"id": variant_id, "inventoryPolicy": policy}]}, "productVariantsBulkUpdate")
 
-    def set_template(self, product_id, suffix):
-        q = """mutation($product: ProductUpdateInput!) {
-          productUpdate(product: $product) { userErrors { field message } }
-        }"""
-        self.mutation(q, {"product": {"id": product_id, "templateSuffix": suffix}}, "productUpdate")
-
-
 # ============================================================
 #  ЛОГИКА ЗА СИНХРОНИЗАЦИЯ
 # ============================================================
@@ -432,17 +425,12 @@ def main():
         complete = len(entries) == first["variant_count"]
         decisions = [d for _, _, d in entries]
         change_product, target_date, note = product_date(decisions, complete)
-        target_template = "preorder" if target_date else ""
-        # Respect custom templates, and leave incomplete/unknown groups untouched.
-        template_change = change_product and first["template_suffix"] in ("", "preorder") and first["template_suffix"] != target_template
         product_error = ""
         # Save compatibility date before any CONTINUE mutation.
         if not DRY_RUN and change_product:
             try:
                 if first["product_date"] != target_date:
                     sh.set_metafield_date(product_id, target_date)
-                if template_change:
-                    sh.set_template(product_id, target_template)
             except Exception as e:
                 product_error = str(e)
                 errors += 1
