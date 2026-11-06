@@ -4,6 +4,7 @@ TASKS = {
     "import_products.py": {"label": "Качи нови продукти (AI)", "dry_run": True, "batch": True, "writes": True},
     "sync_weight.py": {"label": "Синхронизирай теглото", "dry_run": True, "batch": False, "writes": True},
     "export_missing_skus.py": {"label": "Експортирай липсващи SKU-та", "dry_run": False, "batch": False, "writes": False},
+    "ean_barcodes.py": {"label": "Баркодове EAN — всички продукти", "dry_run": True, "batch": False, "writes": True},
     "find_variations.py": {"label": "Намери вариации", "dry_run": False, "batch": False, "writes": False},
 }
 

@@ -8,6 +8,7 @@ export type HubModule = {
 
 export const modules: HubModule[] = [
   { id: "easyrea", href: "/easyrea", label: "Easyrea Sync", description: "Синхронизации, импорт, вариации, отчети и история.", status: "phase1" },
+  { id: "barcodes", href: "/barcodes", label: "EAN баркодове", description: "Паралелна проверка и конвертиране на баркодовете.", status: "ready" },
   { id: "logistics", href: "/logistics", label: "Logistics", description: "Shopify пратки и Speedy / Econt / Sameday статуси.", status: "phase1" },
   { id: "social", href: "/social", label: "Social", description: "Brand Collector, Content Feed, Drafts и publishing pipeline.", status: "phase1" },
   { id: "feeds", href: "/feeds", label: "Feeds", description: "Фийдове по пазар, XML прегледи и отчети.", status: "phase1" },

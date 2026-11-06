@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 const items = [
   ["/", "Dashboard"],
   ["/easyrea", "Easyrea Sync"],
+  ["/barcodes", "EAN баркодове"],
   ["/logistics", "Logistics"],
   ["/social", "Social"],
   ["/feeds", "Feeds"],
