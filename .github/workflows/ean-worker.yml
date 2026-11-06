@@ -1,0 +1,42 @@
+name: EAN worker validation
+on:
+  pull_request:
+    paths:
+      - 'patches/worker/**'
+      - 'patches/web/**'
+      - 'source-bundle/**'
+      - '.github/workflows/ean-worker.yml'
+  workflow_dispatch:
+jobs:
+  validate-worker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Reconstruct worker snapshot
+        run: |
+          cat source-bundle/part-* | base64 -d | tar xz
+          cp -r patches/worker/. worker/
+          python -m pip install --upgrade pip
+          python -m pip install -r worker/requirements.txt
+      - name: Syntax and unit tests
+        run: |
+          python -m compileall -q worker/easyrea/ean_barcodes.py worker/app.py
+          python -m unittest discover -s worker/tests -p test_ean_barcodes.py -v
+  validate-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reconstruct Next.js app and compile
+        run: |
+          cat source-bundle/part-* | base64 -d | tar xz
+          cp patches/easyrea-page.tsx src/app/easyrea/page.tsx
+          cp patches/package.json package.json
+          cp -r patches/web/. src/
+          npm install --no-audit --no-fund
+          npm run build
