@@ -13,7 +13,11 @@ import sys
 import threading
 from collections import defaultdict
 
-from import_products import Shopify, UncertainCreate
+import import_products
+from import_products import Shopify
+
+# Multi-barcode types are available in Shopify Admin API 2026-10.
+import_products.API_VERSION = '2026-10'
 
 QUERY = """query EanScan($after:String) {
   productVariants(first:50,after:$after) {
