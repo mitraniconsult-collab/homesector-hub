@@ -210,7 +210,7 @@ def unavailable_images(urls):
     return unavailable
 
 
-def fetch_catalog(session,xsrf):
+def fetch_catalog(session,xsrf, *, compare_purchase_prices=False):
     out={};conflicts=set();page=1;received=0;total=None
     while True:
         body={'idsSegmentation':[],'idsTheme':[],'codesGroupes':[],'idsFavori':[],'idsPictogrammes':[],'idsPicto':[],'idsUsine':[],'codesMarque':[],'codesStyle':[],'inPanier':[],'typesMassif':[],'idsFonctionAffiner':[],'tradepalDestockagePourcentRemise':[],'idProgrammeEtp':None,'idCleContainer':None,'idsCleContainer':[],'idsTypeDispo':[],'checkIsStateCentrale2':False,'incoterm':[],'nombreAffichage':200,'page':page,'texte':'','tousProduits':True,'ordreAffichage':'ORDER_CATEGORIE_ASC','isRayon':False,'isAllRayon':False,'codeMagasin':CODE_MAGASIN,'suffixeMagasin':SUFFIXE_MAGASIN,'modeMultiMag':False,'typePanier':'STD'}
@@ -225,6 +225,8 @@ def fetch_catalog(session,xsrf):
             code=sku(p.get('codeArticle'))
             if not code:continue
             if code in out:
+                if compare_purchase_prices and p.get('prixAchat') != out[code].get('prixAchat'):
+                    conflicts.add(code)
                 if ean(p.get('gencode')) and ean(out[code].get('gencode')) and ean(p['gencode'])!=ean(out[code]['gencode']):conflicts.add(code)
             else:out[code]=p;added+=1
         if not added and page>1:raise RuntimeError('Easyrea повтори страница без нови кодове; импортът е спрян')
