@@ -43,12 +43,14 @@ export default function EasyreaPage(){
 
   async function run(task:string){
     if(submitting || (job && !terminal(job.status))) return;
+    if(task==="sync_cost.py" && mode==="real" && !window.confirm("Да запиша доставните цени от Easyrea в Shopify, закръглени нагоре до цяло евро?")) return;
     setSubmitting(true);
     setMessage(`Подготвя ${task}…`); setPollError(""); setJob(null);
     try{
-      if(task === "sync.py" || task === "import_products.py" || task === "export_order_skus.py"){
+      if(task === "sync.py" || task === "import_products.py" || task === "export_order_skus.py" || task === "sync_cost.py"){
         const health=await fetch("/api/worker/health",{cache:"no-store"});
         const configuration=await health.json();
+        if(task==="sync_cost.py" && (!health.ok || configuration.cost_sync_version !== 1)) throw new Error("Worker още не е обновен за опресняване на себестойността.");
         if(task==="export_order_skus.py" && (!health.ok || configuration.order_skus_version !== 1)) throw new Error("Worker още се обновява за отчета по поръчки. Изчакайте и опитайте отново.");
         if(task==="import_products.py" && (!health.ok || configuration.import_version !== 5)) throw new Error("Worker още се обновява за запазения каталог. Изчакайте и опитайте отново.");
         if(task==="sync.py" && (!health.ok || configuration.stock_sync_version !== 2)) throw new Error("Python Worker още използва старата синхронизация. Обновете Worker до последната версия, преди да стартирате общата задача.");
@@ -76,7 +78,7 @@ export default function EasyreaPage(){
     </div></div>
     <div className="notice">Импорт: каталогът и вече прочетените продуктови карти се пазят 24 часа. При нужда използвайте „Обнови каталога от Easyrea“. Тестът по подразбиране прави отчет без AI заявки. REAL RUN проверява SKU и EAN в Shopify преди всеки запис и запазва готовите продукти като Draft.</div>
     <div className="card"><table className="table"><thead><tr><th>Задача</th><th>График</th><th>Време</th><th>Променя данни</th><th></th></tr></thead><tbody>
-      {easyreaTasks.map(t=><tr key={t.key}><td><strong>{t.name}</strong><div className="muted code">{t.key}</div>{t.key==="import_products.py"&&<div className="muted">Проверка по SKU и EAN · всички снимки · Claude / OpenAI · Product category · Draft</div>}{t.key==="export_order_skus.py"&&<div className="muted">Excel + CSV · общо по SKU · филтър по бранд · редове по поръчки · липсващи SKU за проверка. Само четене, включва частични изпращания. Не приспада наличности / вече заявена стока.</div>}{t.key==="export_missing_skus.py"&&<div className="muted">EAN на варианти без SKU: atmosphera, Hesperide, Secret De Gourmet, 5five, Neka.</div>}</td><td>{t.cadence}</td><td>{t.duration}</td><td>{t.writes?"Да":"Не"}</td><td><button className="btn secondary" disabled={submitting || (!!job&&!terminal(job.status))} onClick={()=>run(t.key)}>Пусни</button></td></tr>)}
+      {easyreaTasks.map(t=><tr key={t.key}><td><strong>{t.name}</strong><div className="muted code">{t.key}</div>{t.key==="sync_cost.py"&&<div className="muted">Доставна цена от Easyrea по SKU · 6,43 € → 7 € · CSV с текуща и изчислена себестойност.</div>}{t.key==="import_products.py"&&<div className="muted">Проверка по SKU и EAN · всички снимки · Claude / OpenAI · Product category · Draft</div>}{t.key==="export_order_skus.py"&&<div className="muted">Excel + CSV · общо по SKU · филтър по бранд · редове по поръчки · липсващи SKU за проверка. Само четене, включва частични изпращания. Не приспада наличности / вече заявена стока.</div>}{t.key==="export_missing_skus.py"&&<div className="muted">EAN на варианти без SKU: atmosphera, Hesperide, Secret De Gourmet, 5five, Neka.</div>}</td><td>{t.cadence}</td><td>{t.duration}</td><td>{t.writes?"Да":"Не"}</td><td><button className="btn secondary" disabled={submitting || (!!job&&!terminal(job.status))} onClick={()=>run(t.key)}>Пусни</button></td></tr>)}
       <tr><td><strong>Добави снимки</strong><div className="muted">Оригинали от Decoration Brands · избор на бранд · SKU/EAN · Active, Draft и Archived · подробен CSV отчет</div></td><td>при нужда</td><td>според броя продукти</td><td>Да</td><td><button className="btn secondary" onClick={()=>setImagesOpen(v=>!v)}>{imagesOpen?"Скрий":"Отвори"}</button></td></tr>
     </tbody></table></div>
     <section id="add-images" style={{scrollMarginTop:24}}>{imagesOpen&&<ProductImages/>}</section>
