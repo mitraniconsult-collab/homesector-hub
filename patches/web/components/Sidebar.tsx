@@ -16,7 +16,7 @@ export default function Sidebar() {
   const [open, setOpen] = useState(false);
   const toggle = useRef<HTMLButtonElement>(null);
   const isCurrent = (href: string) => pathname === href || (href !== "/" && pathname.startsWith(href + "/"));
-  return <aside className="sidebar hs-sidebar" onKeyDown={event => {
+  return <aside className="sidebar hs-sidebar" data-route={pathname === "/reports" ? "reports" : undefined} onKeyDown={event => {
     if (event.key === "Escape" && open) { setOpen(false); toggle.current?.focus(); }
   }}>
     <div className="hs-header">

@@ -50,3 +50,35 @@ body:has(.hs-sidebar) .btn.danger[aria-pressed="true"] { outline: 2px solid curr
   .hs-easyrea-tasks td[data-label]::before { content: attr(data-label) ": "; font-weight: 650; }
   .hs-easyrea-tasks td:last-child .btn { width: 100%; margin-top: 5px; }
 }
+
+/* Reports keep the original download links and response states. */
+body:has(.hs-sidebar[data-route="reports"]) .pageHead p,
+body:has(.hs-sidebar[data-route="reports"]) .table td:nth-child(2) .code {
+  display: none;
+}
+@media (max-width: 900px) {
+  body:has(.hs-sidebar[data-route="reports"]) .card:has(> .table) {
+    background: transparent; border: 0; padding: 0; box-shadow: none; overflow: visible;
+  }
+  body:has(.hs-sidebar[data-route="reports"]) .table { display: block; width: 100%; min-width: 0; }
+  body:has(.hs-sidebar[data-route="reports"]) .table thead { display: none; }
+  body:has(.hs-sidebar[data-route="reports"]) .table tbody { display: grid; gap: 12px; }
+  body:has(.hs-sidebar[data-route="reports"]) .table tr {
+    display: grid; grid-template-columns: minmax(0,1fr); gap: 8px;
+    background: white; border: 1px solid #e2d8d2; border-radius: 14px; padding: 16px;
+  }
+  body:has(.hs-sidebar[data-route="reports"]) .table td {
+    display: block; border: 0; padding: 0; min-width: 0; width: auto;
+    word-break: normal; overflow-wrap: break-word; text-align: left;
+  }
+  body:has(.hs-sidebar[data-route="reports"]) .table td:nth-child(1) { order: 1; color: #625952; font-size: .875rem; }
+  body:has(.hs-sidebar[data-route="reports"]) .table td:nth-child(2) { order: 0; font-weight: 700; font-size: 1.06rem; }
+  body:has(.hs-sidebar[data-route="reports"]) .table td:nth-child(3) { order: 2; font-size: .875rem; }
+  body:has(.hs-sidebar[data-route="reports"]) .table td:nth-child(4) { order: 3; color: #625952; font-size: .875rem; overflow-wrap: anywhere; }
+  body:has(.hs-sidebar[data-route="reports"]) .table td:nth-child(5) { order: 4; margin-top: 6px; }
+  body:has(.hs-sidebar[data-route="reports"]) .table td:last-child a {
+    display: flex; align-items: center; justify-content: center; box-sizing: border-box;
+    min-height: 44px; width: 100%; white-space: nowrap; color: white;
+    background: var(--hs-ink); border-color: var(--hs-ink); text-decoration: none;
+  }
+}
