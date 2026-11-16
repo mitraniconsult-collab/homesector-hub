@@ -3,6 +3,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRef, useState } from "react";
 import "./hub-navigation.css";
+import "./hub-typography.css";
+import { Inter, Source_Serif_4 } from "next/font/google";
+
+const bodyFont = Source_Serif_4({ subsets: ["latin", "cyrillic"], display: "swap", preload: true, adjustFontFallback: true });
+const headingFont = Inter({ subsets: ["latin", "cyrillic"], display: "swap", preload: false, adjustFontFallback: true });
 
 const groups = [
   { label: "Начало", links: [["/", "Табло"]] },
@@ -19,6 +24,7 @@ export default function Sidebar() {
   return <aside className="sidebar hs-sidebar" data-route={pathname === "/reports" ? "reports" : undefined} onKeyDown={event => {
     if (event.key === "Escape" && open) { setOpen(false); toggle.current?.focus(); }
   }}>
+    <style>{`body:has(.hs-sidebar){--font-body:${bodyFont.style.fontFamily};--font-heading:${headingFont.style.fontFamily}}`}</style>
     <div className="hs-header">
       <Link href="/" aria-label="Homesector Hub — Табло" onClick={() => setOpen(false)}>
         <img src="https://cdn.shopify.com/s/files/1/0676/9213/4667/files/Homesector_Logo_400x100px.png?v=1723215396" width="160" height="40" alt="Homesector" />

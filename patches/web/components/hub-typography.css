@@ -1,0 +1,41 @@
+body:has(.hs-sidebar) {
+  --font-size-base: clamp(1rem, .95rem + .25vw, 1.125rem);
+  --line-height-base: 1.4;
+  --measure: 65ch;
+  --type-h3: clamp(1.25rem, 1.19rem + .31vw, 1.40625rem);
+  --type-h2: clamp(1.5625rem, 1.49rem + .39vw, 1.7578rem);
+  --type-h1: clamp(1.953rem, 1.86rem + .49vw, 2.197rem);
+  --type-small: clamp(.875rem, .85rem + .125vw, .9375rem);
+  font-family: var(--font-body, Georgia, serif);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  font-kerning: normal;
+  font-optical-sizing: auto;
+}
+body:has(.hs-sidebar) :is(h1,h2,h3,button,input,select,textarea,nav,label,table,.btn,.hs-toggle,.hs-group-label) {
+  font-family: var(--font-heading, Verdana, sans-serif);
+  line-height: 1.35;
+}
+body:has(.hs-sidebar) :is(h1,h2,h3) {
+  max-inline-size: min(100%, 36ch);
+  font-weight: 700;
+  margin-block: .8em .4em;
+  text-wrap: balance;
+}
+body:has(.hs-sidebar) h1 { font-size: var(--type-h1); }
+body:has(.hs-sidebar) h2 { font-size: var(--type-h2); }
+body:has(.hs-sidebar) h3 { font-size: var(--type-h3); }
+body:has(.hs-sidebar) :is(p,.notice,.muted,li,dd) {
+  max-inline-size: min(100%, var(--measure));
+  text-wrap: pretty;
+  text-align: start;
+  letter-spacing: normal;
+  font-variant-numeric: oldstyle-nums;
+}
+body:has(.hs-sidebar) p { margin-block: 0 1.4em; }
+body:has(.hs-sidebar) :is(small,.muted,.type-caption) { font-size: var(--type-small); line-height: 1.4; }
+body:has(.hs-sidebar) :is(td,time,.tabular-nums) {
+  font-variant-numeric: lining-nums tabular-nums;
+}
+body:has(.hs-sidebar) :is(td,th,button,.btn,label) { max-inline-size: min(100%, 65ch); }
+body:has(.hs-sidebar) .type-caps { text-transform: uppercase; letter-spacing: .08em; }
