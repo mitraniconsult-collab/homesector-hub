@@ -16,6 +16,7 @@ export default function EasyreaPage(){
   const [aiProvider,setAiProvider]=useState("auto");
   const [aiPreview,setAiPreview]=useState(false);
   const [refreshCatalog,setRefreshCatalog]=useState(false);
+  const [confirmCost,setConfirmCost]=useState(false);
   const [message,setMessage]=useState("");
   const [job,setJob]=useState<Job|null>(null);
   const [pollError,setPollError]=useState("");
@@ -39,9 +40,10 @@ export default function EasyreaPage(){
   },[job?.id,job?.status]);
 
 
-  async function run(task:string){
+  async function run(task:string, confirmed=false){
     if(submitting || (job && !terminal(job.status))) return;
-    if(task==="sync_cost.py" && mode==="real" && !window.confirm("Да запиша доставните цени от Easyrea в Shopify, закръглени нагоре до цяло евро?")) return;
+    if(task==="sync_cost.py" && mode==="real" && !confirmed){setConfirmCost(true);return;}
+    setConfirmCost(false);
     setSubmitting(true);
     setMessage("Подготвям задачата…"); setPollError(""); setJob(null);
     try{
@@ -62,7 +64,7 @@ export default function EasyreaPage(){
 
   return <>
     <div className="pageHead"><div><h1>Easyrea Sync</h1><p>Синхронизация на каталога и обработка на поръчки.</p></div><div className="actions">
-      <button className={`btn ${mode==="dry"?"primary":"secondary"}`} aria-pressed={mode==="dry"} onClick={()=>setMode("dry")}>Тестов режим</button>
+      <button className={`btn ${mode==="dry"?"primary":"secondary"}`} aria-pressed={mode==="dry"} onClick={()=>{setConfirmCost(false);setMode("dry");}}>Тестов режим</button>
       <button className={`btn ${mode==="real"?"danger":"secondary"}`} aria-pressed={mode==="real"} onClick={()=>setMode("real")}>Реален режим</button>
     </div></div>
     <details className="hs-import-settings"><summary>Настройки за импорт</summary><div className="actions">
@@ -74,7 +76,7 @@ export default function EasyreaPage(){
     <div className="notice">Импорт: каталогът и вече прочетените продуктови карти се пазят 24 часа. При нужда използвайте „Обнови каталога от Easyrea“. Тестът по подразбиране прави отчет без AI заявки. REAL RUN проверява SKU и EAN в Shopify преди всеки запис и запазва готовите продукти като Draft.</div></details>
     <h2>Задачи</h2>
     <div className="card hs-easyrea-tasks"><table className="table"><thead><tr><th>Задача</th><th></th></tr></thead><tbody>
-      {easyreaTasks.map(t=><tr key={t.key}><td><strong>{t.name}</strong>{t.key==="sync_cost.py"&&<div className="muted">Обновява себестойността на артикулите.</div>}{t.key==="import_products.py"&&<div className="muted">Проверка по SKU и EAN · всички снимки · Claude / OpenAI · Product category · Draft</div>}{t.key==="export_order_skus.py"&&<div className="muted">Excel + CSV · общо по SKU · филтър по бранд · редове по поръчки · липсващи SKU за проверка. Само четене, включва частични изпращания. Не приспада наличности / вече заявена стока.</div>}{t.key==="export_missing_skus.py"&&<div className="muted">EAN на варианти без SKU: atmosphera, Hesperide, Secret De Gourmet, 5five, Neka.</div>}</td><td><button className="btn secondary" disabled={submitting || (!!job&&!terminal(job.status))} onClick={()=>run(t.key)}>Пусни</button></td></tr>)}
+      {easyreaTasks.map(t=><tr key={t.key}><td><strong>{t.name}</strong>{t.key==="sync_cost.py"&&<div className="muted">Обновява себестойността на артикулите.</div>}{t.key==="import_products.py"&&<div className="muted">Проверка по SKU и EAN · всички снимки · Claude / OpenAI · Product category · Draft</div>}{t.key==="export_order_skus.py"&&<div className="muted">Excel + CSV · общо по SKU · филтър по бранд · редове по поръчки · липсващи SKU за проверка. Само четене, включва частични изпращания. Не приспада наличности / вече заявена стока.</div>}{t.key==="export_missing_skus.py"&&<div className="muted">EAN на варианти без SKU: atmosphera, Hesperide, Secret De Gourmet, 5five, Neka.</div>}</td><td><button className="btn secondary" disabled={submitting || (!!job&&!terminal(job.status))} onClick={()=>run(t.key)}>Пусни</button>{t.key==="sync_cost.py"&&confirmCost&&mode==="real"&&<div className="notice"><p>Да обновя себестойността в Shopify?</p><button type="button" className="btn danger" disabled={submitting} onClick={()=>run(t.key,true)}>Потвърди и пусни</button> <button type="button" className="btn secondary" onClick={()=>setConfirmCost(false)}>Отказ</button></div>}{t.key==="sync_cost.py"&&message&&<p role="status">{message}</p>}</td></tr>)}
       <tr><td><strong>Добави снимки</strong><div className="muted">Оригинали от Decoration Brands · избор на бранд · SKU/EAN · Active, Draft и Archived · подробен CSV отчет</div></td><td><button className="btn secondary" onClick={()=>setImagesOpen(v=>!v)}>{imagesOpen?"Скрий":"Отвори"}</button></td></tr>
     </tbody></table></div>
     <section id="add-images" style={{scrollMarginTop:24}}>{imagesOpen&&<ProductImages/>}</section>
