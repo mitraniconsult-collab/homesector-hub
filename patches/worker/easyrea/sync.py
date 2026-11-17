@@ -399,6 +399,26 @@ def apply_variant(sh, v, d):
     return "applied"
 
 
+
+def storefront_button_state(v, d):
+    """Human-readable expected storefront state after the planned sync.
+
+    This is a reporting projection, not a theme write. The storefront theme
+    renders the selected variant using its date + Shopify availability.
+    """
+    qty = v.get("quantity")
+    if d.policy is None:
+        return "REVIEW_UNCHANGED"
+    # Locally stocked merchandise remains purchasable while quantities last.
+    if isinstance(qty, int) and not isinstance(qty, bool) and qty > 0:
+        return "ADD_TO_CART"
+    if d.policy == "DENY":
+        return "UNAVAILABLE"
+    if d.arrival:
+        return "PREORDER_WITH_DATE"
+    return "ADD_TO_CART"
+
+
 def main():
     runtime.require_env("EASYREA_LOGIN", "EASYREA_PASSWORD", "SHOPIFY_STORE", "SHOPIFY_CLIENT_ID", "SHOPIFY_CLIENT_SECRET")
     runtime.print_mode_banner("Easyrea → Shopify · наличности и дати", DRY_RUN)
@@ -449,6 +469,7 @@ def main():
                 "sku": v["sku"], "variant_id": v["variant_id"], "product_id": product_id,
                 "supplier_status": rec.get("idTypeDispo") if rec else "MISSING",
                 "action": d.action, "quantity_preserved": v["quantity"],
+                "expected_button_state": storefront_button_state(v, d),
                 "current_policy": v["inventory_policy"], "target_policy": d.policy or "UNCHANGED",
                 "current_variant_date": v["variant_date"] or "", "target_variant_date": d.arrival or "",
                 "current_product_date": first["product_date"] or "",
