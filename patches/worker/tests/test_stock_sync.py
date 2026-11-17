@@ -259,5 +259,22 @@ class BusinessRules(unittest.TestCase):
         self.assertFalse(any(call[0] == 'template' for call in sh.calls))
 
 
+
+    def test_reported_button_states_match_supplier_and_local_stock(self):
+        cases = [
+            ({'idTypeDispo': 1}, 0, 'ADD_TO_CART'),
+            ({'idTypeDispo': 1}, -3, 'ADD_TO_CART'),
+            ({'idTypeDispo': 2, 'dateArrivage': '2099-12-16'}, 0, 'PREORDER_WITH_DATE'),
+            ({'idTypeDispo': 2, 'dateArrivage': '2099-12-16'}, -2, 'PREORDER_WITH_DATE'),
+            ({'idTypeDispo': 2, 'dateArrivage': '2099-12-16'}, 3, 'ADD_TO_CART'),
+            ({'availabilityLabel': 'Product stopped'}, 0, 'UNAVAILABLE'),
+            (None, 0, 'REVIEW_UNCHANGED'),
+        ]
+        for supplier, qty, expected in cases:
+            with self.subTest(supplier=supplier, quantity=qty):
+                decision = decide(supplier, qty)
+                self.assertEqual(sync.storefront_button_state({'quantity': qty}, decision), expected)
+
+
 if __name__ == '__main__':
     unittest.main()
