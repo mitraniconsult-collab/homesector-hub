@@ -1,4 +1,5 @@
 TASKS = {
+    "emag_catalog.py": {"label": "eMAG — пълен Shopify каталог и проверки", "dry_run": False, "batch": False, "writes": False},
     "sync_cost.py": {"label": "Опресни Cost per Item", "dry_run": True, "batch": False, "writes": True},
     "export_order_skus.py": {"label": "SKU от неизпратени поръчки", "dry_run": False, "batch": False, "writes": False},
     "sync.py": {"label": "Синхронизирай наличности и дати", "dry_run": True, "batch": False, "writes": True},
