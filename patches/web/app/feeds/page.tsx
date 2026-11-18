@@ -112,6 +112,17 @@ export default function FeedsPage() {
       <button className="btn secondary" type="button" onClick={() => void refresh()} disabled={loading}>{loading ? "Проверява…" : "Обнови статусите"}</button>
     </div>
     <div className="stack" aria-live="polite">
+      <section className="card" aria-labelledby="emag-title">
+        <div className="sectionTitle" style={{ margin: "0 0 12px" }}>
+          <h2 id="emag-title">eMAG · пълен Shopify каталог</h2>
+          <span className="badge warn">Подготовка за импорт</span>
+        </div>
+        <p>Обхват: всички Shopify варианти, включително продукти, които още не са публикувани в eMAG. Първият етап прави пълен отчет по SKU/EAN, изображения, категории и липсваща информация.</p>
+        <p className="notice">Отчетът е само за проверка. Не публикува продукти, не променя оферти и не е готов eMAG файл. Съпоставянето на категориите и атрибутите предстои.</p>
+        <div className="actions" style={{ marginTop: 16 }}>
+          <a className="btn primary" href="/easyrea">Генерирай каталог · eMAG</a>
+        </div>
+      </section>
       <section className="card" aria-labelledby="favi-bg-title">
         <div className="sectionTitle" style={{ margin: "0 0 12px" }}>
           <h2 id="favi-bg-title">FAVI · България</h2>
