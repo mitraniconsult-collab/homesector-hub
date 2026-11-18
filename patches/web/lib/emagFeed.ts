@@ -4,6 +4,14 @@ const API_VERSION = "2026-04";
 const MAX_BYTES = 100_000_000;
 const MAX_ITEMS = 100_000;
 const MAX_CATEGORIES = 150;
+export const EMAG_SHARDS = 8;
+
+// Stable category routing: a product stays on the same URL when other
+// products are added or removed. Never split a category between feeds.
+export function shardForCategory(category: string): number {
+  return createHash("sha256").update(category.trim().normalize("NFC").toLocaleLowerCase("en"))
+    .digest().readUInt32BE(0) % EMAG_SHARDS;
+}
 
 type Variant = {
   id: string; sku?: string | null; barcode?: string | null; title?: string | null;
@@ -122,8 +130,10 @@ export async function generateEmagXml(config: {
 }) {
   const token = await shopifyToken(config.store, config.clientId, config.clientSecret);
   const seen = new Set<string>();
-  const categories = new Set<string>();
-  const parts = ['<?xml version="1.0" encoding="UTF-8"?>', '<products>'];
+  const categories = Array.from({ length: EMAG_SHARDS }, () => new Set<string>());
+  const parts = Array.from({ length: EMAG_SHARDS }, () =>
+    ['<?xml version="1.0" encoding="UTF-8"?>', '<products>']);
+  const perShard = Array(EMAG_SHARDS).fill(0) as number[];
   let cursor: string | null = null;
   let scanned = 0; let accepted = 0; let skipped = 0;
   while (true) {
@@ -134,21 +144,28 @@ export async function generateEmagXml(config: {
       scanned++;
       const item = feedItem(variant, config.vatPercent, config.handlingDays);
       if (!item) { skipped++; continue; }
-      parts.push(item); accepted++;
-      categories.add(variant.product.category?.name?.trim() || variant.product.productType?.trim() || "");
-      if (accepted > MAX_ITEMS || categories.size > MAX_CATEGORIES) throw new Error("eMAG feed limits exceeded");
+      const category = variant.product.category?.name?.trim() || variant.product.productType?.trim() || "";
+      const shard = shardForCategory(category);
+      parts[shard].push(item); accepted++; perShard[shard]++;
+      categories[shard].add(category);
+      if (perShard[shard] > MAX_ITEMS || categories[shard].size > MAX_CATEGORIES)
+        throw new Error(`eMAG feed limits exceeded on shard ${shard + 1}`);
     }
     if (!connection.pageInfo.hasNextPage) break;
     const next = connection.pageInfo.endCursor;
     if (!next || next === cursor || !connection.nodes.length) throw new Error("Incomplete Shopify pagination");
     cursor = next;
   }
-  parts.push('</products>');
   if (!accepted) throw new Error("No eligible products; refusing to publish an empty feed");
-  const xml = parts.join("\n");
-  const bytes = Buffer.byteLength(xml, "utf8");
-  if (bytes > MAX_BYTES) throw new Error("eMAG feed exceeds 100MB");
-  return { xml, report: { scanned, accepted, skipped, categories: categories.size, bytes,
-    sha256: createHash("sha256").update(xml).digest("hex"),
+  const shards = parts.map((content, index) => {
+    if (!perShard[index]) throw new Error(`Empty eMAG shard ${index + 1}; refusing incomplete publication`);
+    const xml = [...content, '</products>'].join("\n");
+    const bytes = Buffer.byteLength(xml, "utf8");
+    if (bytes > MAX_BYTES) throw new Error(`eMAG shard ${index + 1} exceeds 100MB`);
+    return { index: index + 1, xml, items: perShard[index], categories: categories[index].size,
+      bytes, sha256: createHash("sha256").update(xml).digest("hex") };
+  });
+  return { shards, report: { scanned, accepted, skipped,
+    categories: new Set(categories.flatMap(set => [...set])).size,
     generated_at: new Date().toISOString() } };
 }
