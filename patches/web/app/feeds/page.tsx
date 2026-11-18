@@ -119,6 +119,8 @@ export default function FeedsPage() {
         </div>
         <p>Обхват: всички Shopify варианти, включително продукти, които още не са публикувани в eMAG. Първият етап прави пълен отчет по SKU/EAN, изображения, категории и липсваща информация.</p>
         <p className="notice">Отчетът е само за проверка. Не публикува продукти, не променя оферти и не е готов eMAG файл. Съпоставянето на категориите и атрибутите предстои.</p>
+        <p><strong>Постоянен адрес след активиране:</strong> <code>https://hub.homesector.bg/feeds/emag/BG.xml</code></p>
+        <p className="muted">Докато фийдът не бъде одобрен и генериран, адресът връща HTTP 503, а не празен или остарял каталог.</p>
         <div className="actions" style={{ marginTop: 16 }}>
           <a className="btn primary" href="/easyrea">Генерирай каталог · eMAG</a>
         </div>
