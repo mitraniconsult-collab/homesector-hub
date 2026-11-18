@@ -16,6 +16,7 @@ export const modules: HubModule[] = [
 ];
 
 export const easyreaTasks = [
+  { key: "emag_catalog.py", name: "eMAG — пълен каталог и проверки", cadence: "при нужда", duration: "според каталога", writes: false, dryRun: false },
   { key: "sync_cost.py", name: "Опресни Cost per Item", cadence: "при нужда", duration: "според броя варианти", writes: true, dryRun: true },
   { key: "export_order_skus.py", name: "SKU от неизпратени поръчки", cadence: "преди заявка", duration: "според броя поръчки", writes: false, dryRun: false },
   { key: "sync.py", name: "Синхронизирай наличности и дати", cadence: "при нужда", duration: "според броя промени", writes: true, dryRun: true },
