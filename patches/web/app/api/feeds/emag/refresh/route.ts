@@ -1,6 +1,6 @@
 import { get, put } from "@vercel/blob";
 import { generateEmagXml } from "@/lib/emagFeed";
-import { EMAG_PREFIX } from "@/lib/emagDelivery";
+import { EMAG_PREFIX, emagFeedUrl } from "@/lib/emagDelivery";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -29,14 +29,21 @@ export async function POST(request: Request) {
     return Response.json({ error: "Publishing disabled until eMAG category and ID mapping is approved" }, { status: 409 });
   }
   try {
-    const { xml, report } = await generateEmagXml({ store, clientId, clientSecret, handlingDays, vatPercent });
-    const pathname = `${EMAG_PREFIX}snapshots/${report.sha256}.xml`;
-    await put(pathname, xml, {
-      access: "private", addRandomSuffix: false, allowOverwrite: true,
-      contentType: "application/xml; charset=utf-8",
-    });
-    const manifest = { version: 1, generated_at: report.generated_at,
-      sha256: report.sha256, xml_pathname: pathname, bytes: report.bytes, items: report.accepted };
+    const { shards, report } = await generateEmagXml({ store, clientId, clientSecret, handlingDays, vatPercent });
+    // Publish every snapshot before advancing the shared pointer. If any upload
+    // fails, none of the eight public URLs changes.
+    const snapshots = [];
+    for (const shard of shards) {
+      const pathname = `${EMAG_PREFIX}snapshots/${shard.sha256}.xml`;
+      await put(pathname, shard.xml, {
+        access: "private", addRandomSuffix: false, allowOverwrite: true,
+        contentType: "application/xml; charset=utf-8",
+      });
+      snapshots.push({ index: shard.index, sha256: shard.sha256,
+        xml_pathname: pathname, bytes: shard.bytes, items: shard.items,
+        categories: shard.categories });
+    }
+    const manifest = { version: 2, generated_at: report.generated_at, shards: snapshots };
     const current = await get(EMAG_PREFIX + "current.json", { access: "private", useCache: false });
     // Optimistic update avoids overwriting a newer refresh from a second worker.
     const currentEtag = current?.statusCode === 200 ? current.headers.get("etag") : null;
@@ -46,7 +53,9 @@ export async function POST(request: Request) {
       ...(currentEtag ? { ifMatch: currentEtag } : {}),
       contentType: "application/json",
     });
-    return Response.json({ ok: true, ...report, url: "https://hub.homesector.bg/feeds/emag/BG.xml" });
+    return Response.json({ ok: true, ...report,
+      feeds: snapshots.map(part => ({ url: emagFeedUrl(part.index),
+        items: part.items, categories: part.categories, bytes: part.bytes })) });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Feed refresh failed" }, { status: 502 });
   }

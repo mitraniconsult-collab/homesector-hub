@@ -18,7 +18,8 @@ export async function proxy(request: NextRequest) {
     "/feeds/favi/BG-preview.xml",
     "/feeds/favi/BG-preview-report.json",
   ];
-  const feed = publicFeedPaths.includes(path) && ["GET", "HEAD"].includes(request.method);
+  const emagShard = /^\/feeds\/emag\/BG-0[2-8]\.xml$/.test(path);
+  const feed = (publicFeedPaths.includes(path) || emagShard) && ["GET", "HEAD"].includes(request.method);
   // The refresh endpoint performs its own Bearer-token authentication.
   const emagRefresh = path === "/api/feeds/emag/refresh" && request.method === "POST";
   if (feed || emagRefresh || workerRequest(request)) return NextResponse.next();

@@ -2,7 +2,21 @@
 
 ## Permanent feed URL
 
-`https://hub.homesector.bg/feeds/emag/BG.xml`
+Eight stable public URLs, one feed registration per URL:
+
+- `https://hub.homesector.bg/feeds/emag/BG.xml`
+- `https://hub.homesector.bg/feeds/emag/BG-02.xml`
+- `https://hub.homesector.bg/feeds/emag/BG-03.xml`
+- `https://hub.homesector.bg/feeds/emag/BG-04.xml`
+- `https://hub.homesector.bg/feeds/emag/BG-05.xml`
+- `https://hub.homesector.bg/feeds/emag/BG-06.xml`
+- `https://hub.homesector.bg/feeds/emag/BG-07.xml`
+- `https://hub.homesector.bg/feeds/emag/BG-08.xml`
+
+Categories are placed into shards by a stable SHA-256 hash of the normalized
+category name. Products in one Shopify category always share a feed; adding
+products in other categories never moves them to a different URL. Each feed
+is separately checked for <=150 categories, <=100,000 items and <=100MB.
 
 This is the **Publish products** XML feed, not an offer-update feed. The URL serves
 the last complete, validated private Blob snapshot and returns HTTP 503 until
@@ -33,15 +47,15 @@ until these checks and eMAG offer ID reconciliation pass.
 Header: `Authorization: Bearer <EMAG_FEED_REFRESH_TOKEN>`
 
 The refresh queries every Shopify variant, emits only active, eligible variants,
-ensures feed size <=100MB, products <=100,000, categories <=150, then writes an
-immutable XML snapshot followed by the current pointer. A failed refresh keeps
-the previous valid snapshot. An authorized scheduler can invoke this endpoint.
+checks limits separately on eight category-based shards, writes all immutable XML
+snapshots, and finally advances one shared manifest pointer. A failed refresh
+keeps the previous complete set. An authorized scheduler can invoke the endpoint.
 
 ## eMAG seller UI
 
 1. Products → Feeds → Add feed.
 2. Feed type: XML; Feed model: **Publish products**.
-3. Feed URL: the permanent URL above; validate it after first generation.
+3. Register all eight permanent URLs as separate feeds; validate each one after first generation.
 4. Set default VAT and handling time to the same validated values as in Hub.
 5. Map XML fields:
 
