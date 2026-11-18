@@ -6,6 +6,7 @@ export async function proxy(request: NextRequest) {
   // Exact read-only feed endpoints must remain accessible to feed consumers.
   // Keep the Feeds dashboard and all other Hub routes behind the session.
   const publicFeedPaths = [
+    "/feeds/emag/BG.xml",
     "/feeds/google/BG.xml",
     "/feeds/google/BG-comparison.json",
     "/feeds/favi/GR-preview.xml",
@@ -18,7 +19,9 @@ export async function proxy(request: NextRequest) {
     "/feeds/favi/BG-preview-report.json",
   ];
   const feed = publicFeedPaths.includes(path) && ["GET", "HEAD"].includes(request.method);
-  if (feed || workerRequest(request)) return NextResponse.next();
+  // The refresh endpoint performs its own Bearer-token authentication.
+  const emagRefresh = path === "/api/feeds/emag/refresh" && request.method === "POST";
+  if (feed || emagRefresh || workerRequest(request)) return NextResponse.next();
   const publicAuth = path === "/login" || path === "/api/auth/login";
   if (!publicAuth && !await validSession(request.cookies.get(SESSION_COOKIE)?.value)) {
     if (path.startsWith("/api/")) return NextResponse.json({ error: "Необходим е вход в Hub." }, { status: 401, headers: { "Cache-Control": "private, no-store" } });
