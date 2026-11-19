@@ -36,6 +36,49 @@ class RunRequest(BaseModel):
 class LogisticsRequest(BaseModel):
     days: int = Field(default=30, ge=1, le=365)
 
+class EmagMatchRequest(BaseModel):
+    eans: list[str] = Field(min_length=1, max_length=40)
+
+@app.post('/emag/match')
+def emag_match(req: EmagMatchRequest, authorization: str | None = Header(default=None)):
+    """Read-only Shopify EAN lookup. Never modifies variants or eMAG offers."""
+    auth(authorization)
+    import re, requests
+    eans = list(dict.fromkeys(req.eans))
+    if any(not re.fullmatch(r'[0-9]{8,14}', x) for x in eans):
+        raise HTTPException(400, 'Невалиден EAN')
+    cfg = config_from_env()
+    if any(not cfg.get(k) for k in ('SHOPIFY_STORE', 'SHOPIFY_CLIENT_ID', 'SHOPIFY_CLIENT_SECRET')):
+        raise HTTPException(503, 'Shopify връзката на Worker не е конфигурирана')
+    try:
+        store = cfg['SHOPIFY_STORE']
+        token_response = requests.post(f'https://{store}/admin/oauth/access_token',
+            json={'grant_type':'client_credentials','client_id':cfg['SHOPIFY_CLIENT_ID'],
+                  'client_secret':cfg['SHOPIFY_CLIENT_SECRET']}, timeout=25)
+        token_response.raise_for_status()
+        token = token_response.json()['access_token']
+        query = '''query ($search:String!) { productVariants(first:100,query:$search) {
+          nodes { id sku barcode product { status title } }
+          pageInfo { hasNextPage } } }'''
+        search = ' OR '.join(f'barcode:{ean}' for ean in eans)
+        response = requests.post(f'https://{store}/admin/api/2026-04/graphql.json',
+            json={'query':query,'variables':{'search':search}},
+            headers={'X-Shopify-Access-Token':token}, timeout=45)
+        response.raise_for_status()
+        result = response.json()
+        if result.get('errors') or not result.get('data',{}).get('productVariants'):
+            raise ValueError('Shopify GraphQL не върна валиден резултат')
+        variants = result['data']['productVariants']
+        if variants['pageInfo']['hasNextPage']:
+            raise ValueError('Твърде много съвпадения в една група; намалете размера')
+        requested = set(eans)
+        matches = [{'ean':v['barcode'], 'shopify_id':v['id'], 'sku':v['sku'] or '',
+                    'status':v['product']['status'], 'title':v['product']['title']}
+                   for v in variants['nodes'] if v.get('barcode') in requested]
+        return {'matches':matches}
+    except (requests.RequestException, KeyError, ValueError) as exc:
+        raise HTTPException(502, f'Проверката в Shopify не успя: {type(exc).__name__}')
+
 @app.get("/health")
 def health(authorization: str | None = Header(default=None)):
     auth(authorization); return {"ok":True,"tasks":len(TASKS),"cost_sync_version":1,"stock_sync_version":2,"stock_sync_review_guard_version":2,"reports_version":1,"import_version":5,"order_skus_version":1,"image_jobs_version":2,"image_jobs_vendor_filter":True,"image_jobs_diagnostics_version":1,"image_jobs_statuses":["ACTIVE","DRAFT","ARCHIVED"],"ai_available":{"claude":bool(os.environ.get("ANTHROPIC_API_KEY")),"openai":bool(os.environ.get("OPENAI_API_KEY"))},"time":datetime.now().astimezone().isoformat(timespec="seconds")}
