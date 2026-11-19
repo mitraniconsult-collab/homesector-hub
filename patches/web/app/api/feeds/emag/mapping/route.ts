@@ -6,11 +6,13 @@ export const maxDuration = 60;
 const PATH = "feeds/emag-bg/offer-registry.json";
 type Offer = { offerId: string; pnk: string; sku: string; ean: string; status: string };
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const saved = await get(PATH, { access: "private", useCache: false });
     if (!saved || saved.statusCode !== 200) return Response.json({ imported: false });
     const value = await new Response(saved.stream).json();
+    if (new URL(request.url).searchParams.get("details") === "1")
+      return Response.json({ imported: true, offers: value.offers }, { headers: { "Cache-Control": "private, no-store" } });
     return Response.json({ imported: true, uploadedAt: value.uploadedAt, count: value.offers.length,
       active: value.offers.filter((offer: Offer) => offer.status === "1").length,
       examples: value.offers.slice(0, 8) }, { headers: { "Cache-Control": "private, no-store" } });
