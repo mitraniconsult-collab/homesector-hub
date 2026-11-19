@@ -1,5 +1,5 @@
 import { get, put } from "@vercel/blob";
-import ExcelJS from "exceljs";
+import * as XLSX from "xlsx";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -23,24 +23,25 @@ export async function POST(request: Request) {
   if (!(file instanceof File) || !/\.xlsx$/i.test(file.name) || file.size > 8_000_000 || file.size < 1000)
     return Response.json({ error: "Изберете валиден eMAG XLSX файл до 8 MB." }, { status: 400 });
   try {
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(Buffer.from(await file.arrayBuffer()) as never);
-    const sheet = workbook.getWorksheet("оферти");
-    if (!sheet || sheet.getRow(3).getCell(7).text.trim() !== "vendor_ext_id" ||
-        sheet.getRow(3).getCell(4).text.trim() !== "part_number_key" ||
-        sheet.getRow(3).getCell(5).text.trim() !== "part_number")
+    const workbook = XLSX.read(Buffer.from(await file.arrayBuffer()), { type: "buffer" });
+    const sheet = workbook.Sheets["оферти"];
+    const rows = sheet ? XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", raw: false }) : [];
+    const field = (row: unknown[], index: number) => String(row?.[index] ?? "").trim();
+    if (!sheet || field(rows[2], 6) !== "vendor_ext_id" ||
+        field(rows[2], 3) !== "part_number_key" ||
+        field(rows[2], 4) !== "part_number")
       return Response.json({ error: "Файлът не е eMAG експорт на оферти." }, { status: 400 });
     const offers: Offer[] = [];
     const ids = new Set<string>();
-    for (let index = 6; index <= sheet.rowCount; index++) {
-      const row = sheet.getRow(index);
-      const id = row.getCell(7).text.trim();
+    for (let index = 5; index < rows.length; index++) {
+      const row = rows[index];
+      const id = field(row, 6);
       if (!id) continue;
-      const offer = { offerId: id, pnk: row.getCell(4).text.trim(),
-        sku: row.getCell(5).text.trim(), ean: row.getCell(6).text.trim(),
-        status: row.getCell(14).text.trim() };
+      const offer = { offerId: id, pnk: field(row, 3),
+        sku: field(row, 4), ean: field(row, 5),
+        status: field(row, 13) };
       if (!/^\d+$/.test(id) || !offer.pnk || !offer.sku || ids.has(id))
-        return Response.json({ error: `Невалидна или дублирана оферта на ред ${index}.` }, { status: 422 });
+        return Response.json({ error: `Невалидна или дублирана оферта на ред ${index + 1}.` }, { status: 422 });
       ids.add(id); offers.push(offer);
     }
     if (!offers.length || offers.length > 100_000)
@@ -51,5 +52,8 @@ export async function POST(request: Request) {
     });
     return Response.json({ imported: true, uploadedAt, count: offers.length,
       active: offers.filter(offer => offer.status === "1").length });
-  } catch { return Response.json({ error: "Неуспешен импорт. Проверете файла и хранилището." }, { status: 503 }); }
+  } catch (error) {
+    console.error("eMAG registry import failed", error instanceof Error ? error.message : "Unknown error");
+    return Response.json({ error: "Неуспешен импорт. Ако файлът е валиден, проверете настройката на Blob хранилището." }, { status: 503 });
+  }
 }
