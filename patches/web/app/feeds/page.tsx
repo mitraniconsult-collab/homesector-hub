@@ -127,6 +127,7 @@ export default function FeedsPage() {
         })}</ul>
         <p className="muted">Докато съпоставянето на съществуващите eMAG оферти и категориите не бъде одобрено, адресите връщат HTTP 503, а не празен или остарял каталог. Всеки XML се добавя като отделен фийд в eMAG.</p>
         <div className="actions" style={{ marginTop: 16 }}>
+          <a className="btn secondary" href="/feeds/emag/mapping">Регистър на eMAG офертите</a>
           <a className="btn primary" href="/easyrea">Генерирай каталог · eMAG</a>
         </div>
       </section>
