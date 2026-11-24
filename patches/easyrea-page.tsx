@@ -19,7 +19,21 @@ export default function EasyreaPage(){
   const [confirmCost,setConfirmCost]=useState(false);
   const [message,setMessage]=useState("");
   const [job,setJob]=useState<Job|null>(null);
+  const [selectedTask,setSelectedTask]=useState<string|null>(null);
   const [pollError,setPollError]=useState("");
+
+  useEffect(()=>{
+    let active=true;
+    fetch("/api/worker/jobs",{cache:"no-store"}).then(async r=>{
+      if(!r.ok) return;
+      const data=await r.json();
+      const jobs=Array.isArray(data.jobs)?data.jobs as Job[]:[];
+      const latest=jobs.filter(j=>easyreaTasks.some(t=>t.key===j.task))
+        .sort((a,b)=>String(b.created_at||b.started_at||"").localeCompare(String(a.created_at||a.started_at||"")))[0];
+      if(active&&latest){setJob(latest);setSelectedTask(latest.task);}
+    }).catch(()=>{});
+    return()=>{active=false};
+  },[]);
 
   async function readJob(id:string){
     const r=await fetch(`/api/worker/jobs/${id}`,{cache:"no-store"});
@@ -45,6 +59,7 @@ export default function EasyreaPage(){
     if(task==="sync_cost.py" && mode==="real" && !confirmed){setConfirmCost(true);return;}
     setConfirmCost(false);
     setSubmitting(true);
+    setSelectedTask(task);
     setMessage("Подготвям задачата…"); setPollError(""); setJob(null);
     try{
       if(task === "sync.py" || task === "import_products.py" || task === "export_order_skus.py" || task === "sync_cost.py"){
@@ -58,7 +73,7 @@ export default function EasyreaPage(){
       const r=await fetch("/api/worker/jobs/run",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({task,mode:task==="export_order_skus.py"?"dry":mode,batch_size:Number(batchSize),batch_number:1,ai_provider:aiProvider,ai_preview:mode==="dry"&&aiPreview,refresh_catalog:task==="import_products.py"&&refreshCatalog})});
       const d=await r.json(); if(!r.ok) throw new Error(d.error||d.detail||"Worker error");
       setJob(d.job); setMessage(mode==="dry" ? "Тестът е стартиран." : "Задачата е стартирана.");
-    }catch(e){setMessage("Задачата не може да се стартира в момента.")}finally{setSubmitting(false)}
+    }catch(e){setMessage(e instanceof Error?e.message:"Задачата не може да се стартира в момента.")}finally{setSubmitting(false)}
   }
 
 
@@ -76,14 +91,10 @@ export default function EasyreaPage(){
     <div className="notice">Импорт: каталогът и вече прочетените продуктови карти се пазят 24 часа. При нужда използвайте „Обнови каталога от Easyrea“. Тестът по подразбиране прави отчет без AI заявки. REAL RUN проверява SKU и EAN в Shopify преди всеки запис и запазва готовите продукти като Draft.</div></details>
     <h2>Задачи</h2>
     <div className="card hs-easyrea-tasks"><table className="table"><thead><tr><th>Задача</th><th></th></tr></thead><tbody>
-      {easyreaTasks.map(t=><tr key={t.key}><td><strong>{t.name}</strong>{t.key==="sync_cost.py"&&<div className="muted">Обновява себестойността на артикулите.</div>}{t.key==="import_products.py"&&<div className="muted">Проверка по SKU и EAN · всички снимки · Claude / OpenAI · Product category · Draft</div>}{t.key==="export_order_skus.py"&&<div className="muted">Excel + CSV · общо по SKU · филтър по бранд · редове по поръчки · липсващи SKU за проверка. Само четене, включва частични изпращания. Не приспада наличности / вече заявена стока.</div>}{t.key==="export_missing_skus.py"&&<div className="muted">EAN на варианти без SKU: atmosphera, Hesperide, Secret De Gourmet, 5five, Neka.</div>}</td><td><button className="btn secondary" disabled={submitting || (!!job&&!terminal(job.status))} onClick={()=>run(t.key)}>Пусни</button>{t.key==="sync_cost.py"&&confirmCost&&mode==="real"&&<div className="notice"><p>Да обновя себестойността в Shopify?</p><button type="button" className="btn danger" disabled={submitting} onClick={()=>run(t.key,true)}>Потвърди и пусни</button> <button type="button" className="btn secondary" onClick={()=>setConfirmCost(false)}>Отказ</button></div>}{t.key==="sync_cost.py"&&message&&<p role="status">{message}</p>}</td></tr>)}
+      {easyreaTasks.map(t=><tr key={t.key}><td><strong>{t.name}</strong>{t.key==="sync_cost.py"&&<div className="muted">Обновява себестойността на артикулите.</div>}{t.key==="import_products.py"&&<div className="muted">Проверка по SKU и EAN · всички снимки · Claude / OpenAI · Product category · Draft</div>}{t.key==="export_order_skus.py"&&<div className="muted">Excel + CSV · общо по SKU · филтър по бранд · редове по поръчки · липсващи SKU за проверка. Само четене, включва частични изпращания. Не приспада наличности / вече заявена стока.</div>}{t.key==="export_missing_skus.py"&&<div className="muted">EAN на варианти без SKU: atmosphera, Hesperide, Secret De Gourmet, 5five, Neka.</div>}</td><td><button className="btn secondary" disabled={submitting || (!!job&&!terminal(job.status))} onClick={()=>run(t.key)}>Пусни</button>{t.key==="sync_cost.py"&&confirmCost&&mode==="real"&&<div className="notice"><p>Да обновя себестойността в Shopify?</p><button type="button" className="btn danger" disabled={submitting} onClick={()=>run(t.key,true)}>Потвърди и пусни</button> <button type="button" className="btn secondary" onClick={()=>setConfirmCost(false)}>Отказ</button></div>}{selectedTask===t.key&&<div style={{minWidth:240,marginTop:10}} aria-live="polite">{message&&<p role="status">{message}</p>}{job?.task===t.key&&<><p><strong>{job.status==="success"?"Завършена успешно":job.status==="failed"?"Неуспешна":job.status==="queued"?"Изчаква":"Изпълнява се"}</strong></p><p className="muted">ID: {job.id}</p>{job.log&&<details open={!terminal(job.status)}><summary>Прогрес и журнал</summary><pre style={{maxHeight:250,overflow:"auto",whiteSpace:"pre-wrap",overflowWrap:"anywhere",fontSize:12}}>{job.log.slice(-12000)}</pre></details>}{!job.log&&!terminal(job.status)&&<p className="muted">Изчакване на първите записи от Worker…</p>}</>}{pollError&&<p role="alert">Временно няма връзка със статуса. Опитваме отново.</p>}</div>}</td></tr>)}
       <tr><td><strong>Добави снимки</strong><div className="muted">Оригинали от Decoration Brands · избор на бранд · SKU/EAN · Active, Draft и Archived · подробен CSV отчет</div></td><td><button className="btn secondary" onClick={()=>setImagesOpen(v=>!v)}>{imagesOpen?"Скрий":"Отвори"}</button></td></tr>
     </tbody></table></div>
     <section id="add-images" style={{scrollMarginTop:24}}>{imagesOpen&&<ProductImages/>}</section>
-    {message&&<div className="sectionTitle"><div className="notice">{message}</div></div>}
-    {job&&<h2>Състояние на задачата</h2>}
-    {job&&<p role="status">{job.status==="success"?"Завършена":job.status==="failed"?"Неуспешна":"Изпълнява се"}</p>}
-    {pollError&&<div className="notice">Статусът временно е недостъпен.</div>}
     {job?.reports?.map(r=><div className="sectionTitle" key={r.downloadUrl}><a className="btn primary" href={r.downloadUrl}>Свали {r.filename}</a><a className="btn secondary" href="/reports">Всички отчети</a></div>)}
     {job?.report_error&&<div className="notice">Отчетът временно е недостъпен.</div>}
   </>;
