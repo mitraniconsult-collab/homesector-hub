@@ -77,7 +77,7 @@ class BusinessRules(unittest.TestCase):
         for v in vs:
             v['variant_count'] = len(vs)
         catalog = {code: {'idTypeDispo': 1} for code in ('A', 'C', 'D')}
-        catalog['Z'] = {'idTypeDispo': 0}  # unknown must not become stopped
+        catalog['Z'] = {'idTypeDispo': 77}  # unknown must not become stopped
         sh = FakeShopify(vs)
         supplier = Mock()
         supplier.fetch_all_products.return_value = catalog
@@ -100,7 +100,7 @@ class BusinessRules(unittest.TestCase):
 
     def test_unknown_supplier_status_spike_still_blocks_real_run(self):
         vs = [variant('A'), variant('B'), variant('C')]
-        catalog = {'A': {'idTypeDispo': 1}, 'B': {'idTypeDispo': 0}}
+        catalog = {'A': {'idTypeDispo': 1}, 'B': {'idTypeDispo': 77}}
         entries = [e for group in sync.build_plan(vs, catalog).values() for e in group]
         with patch.object(sync.runtime, 'force', return_value=False):
             with self.assertRaisesRegex(RuntimeError, 'Над 25% непознати статуси'):
@@ -112,7 +112,7 @@ class BusinessRules(unittest.TestCase):
     def test_untracked_matched_variants_do_not_dilute_unknown_status_guard(self):
         vs = [variant('A'), variant('B')] + [dict(variant(str(i)), tracked=False) for i in range(10)]
         catalog = {v['sku']: {'idTypeDispo': 1} for v in vs}
-        catalog['B'] = {'idTypeDispo': 0}
+        catalog['B'] = {'idTypeDispo': 77}
         entries = [e for group in sync.build_plan(vs, catalog).values() for e in group]
         with patch.object(sync.runtime, 'force', return_value=False):
             with self.assertRaisesRegex(RuntimeError, 'Над 25% непознати статуси'):
@@ -140,6 +140,12 @@ class BusinessRules(unittest.TestCase):
     def test_invalid_missing_past_dates_stop_preorders(self):
         for value in (None, '', '16/12/2026', '2026-02-30', '2026-10-03'):
             d = decide({'idTypeDispo': 2, 'dateArrivage': value}, 0, today=TODAY)
+            self.assertEqual((d.policy, d.arrival), ('DENY', None))
+
+    def test_easyrea_status_zero_is_stopped_by_default(self):
+        self.assertIn('0', sync.STOPPED_STATUS_IDS)
+        for qty in (4, 0, -2):
+            d = decide({'idTypeDispo': 0}, qty, stopped_ids=sync.STOPPED_STATUS_IDS)
             self.assertEqual((d.policy, d.arrival), ('DENY', None))
 
     def test_stopped_never_oversells_even_with_local_stock(self):
