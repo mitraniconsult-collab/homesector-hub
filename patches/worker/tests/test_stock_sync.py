@@ -89,14 +89,45 @@ class BusinessRules(unittest.TestCase):
             with Path(sync.REPORT_FILE).open(encoding='utf-8-sig') as f:
                 rows = list(csv.DictReader(f))
         self.assertEqual(len(rows), len(vs))
-        self.assertEqual(sum(r['applied'] == 'review' for r in rows), 8)
-        self.assertEqual({call[1] for call in sh.calls}, {'vA', 'vC', 'vD'})
+        self.assertEqual(sum(r['applied'] == 'review' for r in rows), 2)
+        self.assertEqual({call[1] for call in sh.calls}, {'vA', 'vC', 'vD', 'vB', 'vE', 'vF', 'vG', 'vH', 'vI'})
         for v in vs:
             self.assertEqual(v['product_date'], '2099-12-16')
             self.assertEqual(v['quantity'], 0)
-            if v['sku'] not in ('A', 'C', 'D'):
+            if v['sku'] in ('Z', ''):
                 self.assertEqual(v['inventory_policy'], 'DENY')
                 self.assertEqual(v['variant_date'], '2099-12-16')
+            elif v['sku'] not in ('A', 'C', 'D'):
+                self.assertEqual(v['inventory_policy'], 'DENY')
+                self.assertIsNone(v['variant_date'])
+
+    def test_missing_variant_does_not_archive_product_with_sellable_sibling(self):
+        vs = [variant('M', 0, 'CONTINUE'), variant('A', 0, 'CONTINUE')]
+        for v in vs:
+            v['variant_count'] = 2
+        entries = sync.build_plan(vs, {'A': {'idTypeDispo': 1}})['p']
+        self.assertEqual(sync.product_status_plan(entries), 'UNCHANGED')
+        self.assertEqual([d.action for _, _, d in entries], ['MISSING', 'IN_STOCK'])
+
+    def test_missing_archives_only_when_all_local_stock_is_exhausted(self):
+        for quantity, expected in ((2, 'UNCHANGED'), (0, 'ARCHIVE'), (-1, 'ARCHIVE')):
+            v = variant('M', quantity, 'CONTINUE')
+            self.assertEqual(sync.product_status_plan(sync.build_plan([v], {})['p']), expected)
+
+    def test_only_hub_archives_are_restored(self):
+        for tags, expected in (([], 'UNCHANGED'), ([sync.AUTO_ARCHIVE_TAG], 'RESTORE')):
+            v = variant('A', 0)
+            v['status'] = 'ARCHIVED'
+            v['product_tags'] = tags
+            entries = sync.build_plan([v], {'A': {'idTypeDispo': 1}})['p']
+            self.assertEqual(sync.product_status_plan(entries), expected)
+
+    def test_unknown_variant_prevents_archiving_whole_product(self):
+        vs = [variant('M', 0), variant('U', 0)]
+        for v in vs:
+            v['variant_count'] = 2
+        entries = sync.build_plan(vs, {'U': {'idTypeDispo': 77}})['p']
+        self.assertEqual(sync.product_status_plan(entries), 'REVIEW')
 
     def test_unknown_supplier_status_spike_still_blocks_real_run(self):
         vs = [variant('A'), variant('B'), variant('C')]
@@ -156,7 +187,7 @@ class BusinessRules(unittest.TestCase):
     def test_confirmed_stopped_ids_and_unknown_status_are_distinct(self):
         self.assertEqual(decide({'idTypeDispo': 99}, 1, stopped_ids={'99'}).policy, 'DENY')
         self.assertIsNone(decide({'idTypeDispo': 99}, 1).policy)
-        self.assertIsNone(decide(None, 1).policy)
+        self.assertEqual(decide(None, 1).policy, 'DENY')
         self.assertIsNone(decide({'idTypeDispo': 1}, None).policy)
 
     def test_conflicting_variant_dates_do_not_overwrite_product_with_one_colour(self):
@@ -166,14 +197,14 @@ class BusinessRules(unittest.TestCase):
         self.assertEqual(product_date(ds, complete=False)[:2], (False, None))
 
     def test_unknown_sibling_preserves_product_metadata(self):
-        ds = [decide(None, 0), decide({'idTypeDispo': 1}, 1)]
+        ds = [decide({'idTypeDispo': 77}, 0), decide({'idTypeDispo': 1}, 1)]
         self.assertEqual(product_date(ds)[:2], (False, None))
 
     def test_supplier_scope_and_exact_sku_matching(self):
         vs = [variant('A'), variant('AA'), dict(variant('B'), vendor='OTHER')]
         groups = sync.build_plan(vs, {'A': {'idTypeDispo': 1}})
         self.assertEqual(len(groups['p']), 2)
-        self.assertEqual([d.action for _, _, d in groups['p']], ['IN_STOCK', 'REVIEW'])
+        self.assertEqual([d.action for _, _, d in groups['p']], ['IN_STOCK', 'MISSING'])
 
     def test_preorder_date_is_written_before_enabling_oversell(self):
         v = variant()
@@ -274,7 +305,7 @@ class BusinessRules(unittest.TestCase):
             ({'idTypeDispo': 2, 'dateArrivage': '2099-12-16'}, -2, 'PREORDER_WITH_DATE'),
             ({'idTypeDispo': 2, 'dateArrivage': '2099-12-16'}, 3, 'ADD_TO_CART'),
             ({'availabilityLabel': 'Product stopped'}, 0, 'UNAVAILABLE'),
-            (None, 0, 'REVIEW_UNCHANGED'),
+            (None, 0, 'UNAVAILABLE'),
         ]
         for supplier, qty, expected in cases:
             with self.subTest(supplier=supplier, quantity=qty):
