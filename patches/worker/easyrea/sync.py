@@ -28,6 +28,10 @@ DRY_RUN = runtime.dry_run(default=True)
 # Missing/blank SKUs are skipped individually and cannot change Shopify.
 MAX_UNKNOWN_STATUS_PCT = 25.0
 STOPPED_STATUS_IDS = {"0"} | {x.strip() for x in os.environ.get("EASYREA_STOPPED_STATUS_IDS", "").split(",") if x.strip()}
+AUTO_ARCHIVE_TAG = "hub-easyrea-auto-archived"
+# Enable only after the dry-run archive candidates have been approved.
+ENABLE_AUTO_ARCHIVE = os.environ.get("HUB_ENABLE_EASYREA_AUTO_ARCHIVE", "").lower() == "true"
+MAX_AUTO_ARCHIVES = int(os.environ.get("HUB_MAX_EASYREA_AUTO_ARCHIVES", "100"))
 
 # ---- EasyRea ----
 EASYREA_BASE      = "https://api-prod.easyrea.com/private/api/easyrea"
@@ -281,7 +285,7 @@ class Shopify:
               inventoryItem { tracked }
               metafield(namespace: "custom", key: "expected_arrival") { value }
               product {
-                id status vendor templateSuffix variantsCount { count }
+                id status vendor tags templateSuffix variantsCount { count }
                 metafield(namespace: "custom", key: "expected_arrival") { value }
               }
             }
@@ -297,6 +301,7 @@ class Shopify:
                     "quantity": n.get("inventoryQuantity"),
                     "tracked": (n.get("inventoryItem") or {}).get("tracked", False),
                     "status": prod["status"], "vendor": prod.get("vendor", "").strip(),
+                    "product_tags": prod.get("tags") or [],
                     "inventory_policy": n["inventoryPolicy"],
                     "template_suffix": prod.get("templateSuffix") or "",
                     "variant_date": (n.get("metafield") or {}).get("value"),
@@ -339,6 +344,19 @@ class Shopify:
         }"""
         self.mutation(q, {"product": product_id, "variants": [{"id": variant_id, "inventoryPolicy": policy}]}, "productVariantsBulkUpdate")
 
+    def set_product_status(self, product_id, status):
+        q = """mutation($product: ProductUpdateInput!) {
+          productUpdate(product: $product) { userErrors { field message } }
+        }"""
+        self.mutation(q, {"product": {"id": product_id, "status": status}}, "productUpdate")
+
+    def change_product_tag(self, product_id, add):
+        field = "tagsAdd" if add else "tagsRemove"
+        q = f"""mutation($id: ID!, $tags: [String!]!) {{
+          {field}(id: $id, tags: $tags) {{ userErrors {{ field message }} }}
+        }}"""
+        self.mutation(q, {"id": product_id, "tags": [AUTO_ARCHIVE_TAG]}, field)
+
 # ============================================================
 #  ЛОГИКА ЗА СИНХРОНИЗАЦИЯ
 # ============================================================
@@ -350,9 +368,33 @@ def build_plan(variants, easyrea):
         if v["vendor"].lower() not in EASYREA_VENDORS:
             continue
         rec = easyrea.get(v["sku"])
-        d = decide(rec, v["quantity"] if v["tracked"] else None, STOPPED_STATUS_IDS)
+        d = decide(rec, v["quantity"] if v["tracked"] and v["sku"] else None, STOPPED_STATUS_IDS)
         groups[v["product_id"]].append((v, rec, d))
     return groups
+
+
+def product_status_plan(entries):
+    """Archive only complete products with no sellable variant and a MISSING SKU.
+
+    A Shopify variant has no ARCHIVED status. Missing variants on mixed products
+    become DENY, while other variants remain available. Manual archives/drafts
+    are never activated by this job.
+    """
+    first = entries[0][0]
+    complete = len(entries) == first["variant_count"]
+    tagged = AUTO_ARCHIVE_TAG in first.get("product_tags", [])
+    sellable = any(
+        d.policy is not None and (v["quantity"] > 0 or d.policy == "CONTINUE")
+        for v, _, d in entries
+    )
+    if not complete or any(d.policy is None for _, _, d in entries):
+        return "REVIEW"
+    if tagged and first["status"] == "ARCHIVED" and sellable:
+        return "RESTORE"
+    has_missing = any(d.action == "MISSING" for _, _, d in entries)
+    if first["status"] == "ACTIVE" and has_missing and not sellable:
+        return "ARCHIVE"
+    return "UNCHANGED"
 
 
 def validate_plan(entries, dry_run):
@@ -376,8 +418,8 @@ def validate_plan(entries, dry_run):
           f"без SKU: {counts['blank_sku']} | липсващи в Easyrea: {counts['missing_supplier']} | "
           f"непрочетена/непроследявана наличност: {counts['unknown_inventory']} | "
           f"непознат статус: {counts['unknown_status']} ({unknown_pct:.1f}% от съпоставените с прочетена наличност)", flush=True)
-    if sum(counts[k] for k in ("blank_sku", "missing_supplier", "unknown_inventory", "unknown_status")):
-        print("[WARNING] Пропуснатите варианти остават БЕЗ ПРОМЯНА; продуктовите дати при непълни групи също се запазват.", flush=True)
+    if sum(counts[k] for k in ("blank_sku", "unknown_inventory", "unknown_status")):
+        print("[WARNING] Непълните/непознати варианти остават БЕЗ ПРОМЯНА.", flush=True)
     if not dry_run:
         if not counts["confirmed"]:
             raise RuntimeError("Няма потвърдени варианти за синхронизация — без промени")
@@ -437,6 +479,14 @@ def main():
     if not all_entries:
         raise RuntimeError("Не са намерени варианти от Easyrea брандовете")
     validate_plan(all_entries, DRY_RUN)
+    planned_status = {pid: product_status_plan(entries) for pid, entries in groups.items()}
+    archive_count = sum(a == "ARCHIVE" for a in planned_status.values())
+    restore_count = sum(a == "RESTORE" for a in planned_status.values())
+    print(f"[продукти] за архивиране: {archive_count}, за възстановяване: {restore_count}; "
+          f"автоматично архивиране: {'включено' if ENABLE_AUTO_ARCHIVE else 'изключено'}", flush=True)
+    if not DRY_RUN and ENABLE_AUTO_ARCHIVE and archive_count > MAX_AUTO_ARCHIVES:
+        raise RuntimeError(f"Предвидени са {archive_count} архивирания, над лимита {MAX_AUTO_ARCHIVES}; "
+                           "прегледайте тестовия отчет преди реална синхронизация")
     rows = []
     errors = 0
     progress = 0
@@ -446,6 +496,7 @@ def main():
         decisions = [d for _, _, d in entries]
         change_product, target_date, note = product_date(decisions, complete)
         product_error = ""
+        product_action = planned_status[product_id]
         # Save compatibility date before any CONTINUE mutation.
         if not DRY_RUN and change_product:
             try:
@@ -475,9 +526,28 @@ def main():
                 "current_product_date": first["product_date"] or "",
                 "target_product_date": (target_date or "") if change_product else "UNCHANGED",
                 "reason": d.reason, "review_note": note, "applied": applied,
+                "product_status": first["status"], "target_product_status": (
+                    "ARCHIVED" if product_action == "ARCHIVE" else
+                    "ACTIVE" if product_action == "RESTORE" else "UNCHANGED"),
+                "product_status_action": product_action,
             })
             if progress % 100 == 0 or progress == len(all_entries):
                 print(f"PROGRESS {progress}/{len(all_entries)}", flush=True)
+        # Apply status only after every variant was updated successfully.
+        # No product deletion, no variant deletion, no quantity writes.
+        if not DRY_RUN and ENABLE_AUTO_ARCHIVE and not product_error and \
+                all(not row["applied"].startswith("ERROR") for row in rows[-len(entries):]):
+            try:
+                if product_action == "ARCHIVE":
+                    sh.change_product_tag(product_id, True)
+                    sh.set_product_status(product_id, "ARCHIVED")
+                elif product_action == "RESTORE":
+                    sh.set_product_status(product_id, "ACTIVE")
+                    sh.change_product_tag(product_id, False)
+            except Exception as e:
+                errors += 1
+                for row in rows[-len(entries):]:
+                    row["product_status_action"] = f"ERROR: {e}"
     with open(REPORT_FILE, "w", newline="", encoding="utf-8-sig") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0]))
         writer.writeheader()
