@@ -397,6 +397,23 @@ def product_status_plan(entries):
     return "UNCHANGED"
 
 
+def limit_archive_plan(planned_status, enabled, dry_run, limit):
+    """Bound live archive mutations while retaining the complete dry-run preview.
+
+    Deferred products remain ACTIVE and are reconsidered on the next run.
+    Restoration is never deferred by the archive limit.
+    """
+    if not enabled or dry_run:
+        return planned_status, 0
+    if limit < 1:
+        raise RuntimeError("HUB_MAX_EASYREA_AUTO_ARCHIVES трябва да е положително число")
+    result = planned_status.copy()
+    candidates = sorted(pid for pid, action in result.items() if action == "ARCHIVE")
+    for pid in candidates[limit:]:
+        result[pid] = "DEFERRED"
+    return result, max(len(candidates) - limit, 0)
+
+
 def validate_plan(entries, dry_run):
     """Guard supplier status changes without treating skipped SKUs as mutations."""
     from collections import Counter
@@ -484,9 +501,11 @@ def main():
     restore_count = sum(a == "RESTORE" for a in planned_status.values())
     print(f"[продукти] за архивиране: {archive_count}, за възстановяване: {restore_count}; "
           f"автоматично архивиране: {'включено' if ENABLE_AUTO_ARCHIVE else 'изключено'}", flush=True)
-    if not DRY_RUN and ENABLE_AUTO_ARCHIVE and archive_count > MAX_AUTO_ARCHIVES:
-        raise RuntimeError(f"Предвидени са {archive_count} архивирания, над лимита {MAX_AUTO_ARCHIVES}; "
-                           "прегледайте тестовия отчет преди реална синхронизация")
+    planned_status, deferred_count = limit_archive_plan(
+        planned_status, ENABLE_AUTO_ARCHIVE, DRY_RUN, MAX_AUTO_ARCHIVES)
+    if deferred_count:
+        print(f"[защита] в това изпълнение ще се архивират най-много {MAX_AUTO_ARCHIVES} продукта; "
+              f"отложени за следващо изпълнение: {deferred_count}", flush=True)
     rows = []
     errors = 0
     progress = 0
