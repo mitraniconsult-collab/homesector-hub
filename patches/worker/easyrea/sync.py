@@ -27,7 +27,7 @@ DRY_RUN = runtime.dry_run(default=True)
 # Stop real runs when matched, tracked supplier records use unexpected statuses.
 # Missing/blank SKUs are skipped individually and cannot change Shopify.
 MAX_UNKNOWN_STATUS_PCT = 25.0
-STOPPED_STATUS_IDS = {x.strip() for x in os.environ.get("EASYREA_STOPPED_STATUS_IDS", "").split(",") if x.strip()}
+STOPPED_STATUS_IDS = {x.strip() for x in os.environ.get("EASYREA_STOPPED_STATUS_IDS", "0").split(",") if x.strip()}
 
 # ---- EasyRea ----
 EASYREA_BASE      = "https://api-prod.easyrea.com/private/api/easyrea"
