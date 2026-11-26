@@ -114,6 +114,20 @@ class BusinessRules(unittest.TestCase):
             v = variant('M', quantity, 'CONTINUE')
             self.assertEqual(sync.product_status_plan(sync.build_plan([v], {})['p']), expected)
 
+    def test_live_archive_batch_is_capped_and_deferred_products_are_retried(self):
+        plan = {f'gid://shopify/Product/{i}': 'ARCHIVE' for i in range(1, 105)}
+        plan['restore-me'] = 'RESTORE'
+        selected, deferred = sync.limit_archive_plan(plan, enabled=True, dry_run=False, limit=100)
+        self.assertEqual(deferred, 4)
+        self.assertEqual(sum(a == 'ARCHIVE' for a in selected.values()), 100)
+        self.assertEqual(sum(a == 'DEFERRED' for a in selected.values()), 4)
+        self.assertEqual(selected['restore-me'], 'RESTORE')
+        self.assertEqual(plan['gid://shopify/Product/104'], 'ARCHIVE')
+        self.assertEqual(sync.limit_archive_plan(plan, True, True, 100), (plan, 0))
+        self.assertEqual(sync.limit_archive_plan(plan, False, False, 100), (plan, 0))
+        with self.assertRaisesRegex(RuntimeError, 'положително'):
+            sync.limit_archive_plan(plan, True, False, 0)
+
     def test_only_hub_archives_are_restored(self):
         for tags, expected in (([], 'UNCHANGED'), ([sync.AUTO_ARCHIVE_TAG], 'RESTORE')):
             v = variant('A', 0)
